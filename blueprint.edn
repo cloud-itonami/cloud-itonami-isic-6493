@@ -1,0 +1,12 @@
+{:itonami.blueprint/id "cloud-itonami-isic-6493"
+ :itonami.blueprint/name "Factoring activities"
+ :itonami.blueprint/isic-rev5 "6493"
+ :itonami.blueprint/domain :finance/factoring
+ :itonami.blueprint/license "AGPL-3.0-or-later"
+ :itonami.blueprint/social-impact [:financial-inclusion :transparency :distributed-risk :fair-pricing]
+ :itonami.blueprint/governor :factoring-governor
+ :itonami.blueprint/required-technologies [:robotics :identity :forms :dmn :bpmn :audit-ledger :banking]
+ :itonami.blueprint/optional-technologies []
+ :itonami.blueprint/status :public-oss
+ :itonami.blueprint/robotics true
+ :itonami.blueprint/maturity :implemented}
