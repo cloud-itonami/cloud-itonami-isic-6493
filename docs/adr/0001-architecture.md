@@ -10,8 +10,8 @@
   deploy`/`:actuation/distribute`/`:actuation/clawback`); superproject
   ADR-2607080200 (`6491`, most recent prior superproject-level "new
   vertical" ADR, establishes the check-family-taxonomy vocabulary this
-  ADR uses); superproject ADR (this build's own superproject-level
-  record, filed alongside this repo-level ADR)
+  ADR uses); superproject ADR-2607141700 (this build's own
+  superproject-level record, filed alongside this repo-level ADR)
 
 ## Context
 
