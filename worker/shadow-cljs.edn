@@ -1,0 +1,12 @@
+;; cljs -> Cloudflare Worker (ESM). All deps AND source paths come from THIS
+;; dir's deps.edn (:paths + the ".." :local/root dep bringing in ../src +
+;; the :shadow alias) -- shadow-cljs ignores a separate :source-paths here
+;; when :deps is used (its own warning says as much), so this file only
+;; needs :deps/:builds.
+{:deps {:aliases [:shadow]}
+ :builds
+ {:worker
+  {:target     :esm
+   :output-dir "dist"
+   :modules    {:worker {:exports {default worker/default}}}
+   :compiler-options {:infer-externs :auto}}}}

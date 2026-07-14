@@ -105,3 +105,47 @@
                                     :client-sanctions-hit? false :debtor-sanctions-hit? false
                                     :status :submitted}})
     (is (= "n" (:client-name (store/receivable s "x"))))))
+
+;; ----------------------------- funder registration (admin, not governed) -----------------------------
+
+(deftest register-funder-is-visible-immediately-on-both-backends
+  (doseq [[label s] (backends)]
+    (testing label
+      (store/register-funder! s {:id "funder-9" :name "New Capital Partners" :funding-capacity 500000})
+      (is (= "New Capital Partners" (:name (store/funder s "funder-9"))))
+      (is (= 500000 (:funding-capacity (store/funder s "funder-9"))))
+      (is (some #{"funder-9"} (map :id (store/all-funders s)))))))
+
+(deftest register-funder-updates-an-existing-funder-in-place
+  (let [s (store/seed-db)]
+    (store/register-funder! s {:id "funder-1" :name "Harborlight Capital Partners" :funding-capacity 9000000})
+    (is (= 9000000 (:funding-capacity (store/funder s "funder-1"))))
+    (is (= 3 (count (store/all-funders s))) "still 3 funders, not a duplicate")))
+
+;; ----------------------------- KV snapshot/hydrate (worker persistence boundary) -----------------------------
+
+(deftest empty-db-has-no-demo-fixture-data
+  (let [s (store/empty-db)]
+    (is (= [] (store/all-receivables s)))
+    (is (= [] (store/all-funders s)))
+    (is (= [] (store/ledger s)))))
+
+(deftest from-snapshot-with-nil-state-is-the-same-as-empty-db
+  (is (= (store/snapshot (store/empty-db)) (store/snapshot (store/from-snapshot nil)))))
+
+(deftest snapshot-round-trips-through-from-snapshot
+  (let [s1 (store/seed-db)]
+    (store/commit-record! s1 {:effect :receivable/upsert :value {:id "rcv-1" :fee-rate 0.025}})
+    (store/append-ledger! s1 {:op :a :disposition :commit})
+    (let [snap (store/snapshot s1)
+          s2 (store/from-snapshot snap)]
+      (is (= (:client-name (store/receivable s1 "rcv-1")) (:client-name (store/receivable s2 "rcv-1"))))
+      (is (= 0.025 (:fee-rate (store/receivable s2 "rcv-1"))) "keyword/number fidelity preserved (EDN, not JSON)")
+      (is (= (store/ledger s1) (store/ledger s2)))
+      (is (= (count (store/all-receivables s1)) (count (store/all-receivables s2))))))
+  (testing "mutating the hydrated copy never mutates the original snapshot's source store"
+    (let [s1 (store/seed-db)
+          snap (store/snapshot s1)
+          s2 (store/from-snapshot snap)]
+      (store/register-funder! s2 {:id "funder-9" :name "New" :funding-capacity 1})
+      (is (nil? (store/funder s1 "funder-9")) "s1 unaffected by s2's mutation"))))

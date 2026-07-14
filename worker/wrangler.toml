@@ -1,0 +1,30 @@
+name = "cloud-itonami-isic-6493-factoring"
+main = "dist/worker.js"
+compatibility_date = "2026-07-14"
+
+# additive: a NEW subdomain under murakumo.cloud, matching api.murakumo.cloud's
+# naming convention (cloud-murakumo-fleet's wrangler.toml). Does not touch or
+# modify the apex murakumo.cloud site or the existing api.murakumo.cloud
+# Worker/zone config.
+routes = [
+  { pattern = "factoring.murakumo.cloud", custom_domain = true }
+]
+
+# the whole factoring book (receivables, funders, verifications, underwritings,
+# ledger, advance/settlement/attestation histories) round-trips through ONE key
+# in this namespace as a pr-str'd EDN snapshot -- see kv_store.cljs's own
+# docstring for why (reuses the exact synchronous, already-tested
+# factoring.operation/factoring.governor logic unchanged, rather than
+# re-deriving it a second time as hand-written async KV op-by-op code).
+[[kv_namespaces]]
+binding = "FACTORING_KV"
+id = "a333f4584ea14f0aa123358a292bf7ed"
+
+# FACTORING_API_KEY gates every route except the public transparency surface
+# (GET /health, /fee-schedule, /solvency/attestation, /solvency/attestations,
+# /funders -- see worker.cljs's own docstring for why those must stay public).
+# Set as a secret, never committed:
+#   wrangler secret put FACTORING_API_KEY
+# Unset -> gated routes fail CLOSED (503, not silently open) -- see
+# worker.cljs's auth-ok? docstring for why this deliberately differs from
+# cloud-murakumo-fleet's own fail-open precedent.

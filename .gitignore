@@ -1,3 +1,8 @@
 /.cpcache/
 /target/
 /out/
+worker/.cpcache/
+worker/node_modules/
+worker/dist/
+worker/.shadow-cljs/
+worker/.wrangler/

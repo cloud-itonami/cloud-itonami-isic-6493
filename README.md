@@ -198,6 +198,21 @@ clojure -M:dev:test    # governor contract · phase invariants · store parity �
 clojure -M:lint        # clj-kondo (errors fail; CI mirrors this)
 ```
 
+## Live deployment
+
+This actor also runs live at **`https://factoring.murakumo.cloud`** --
+a Cloudflare Worker (`worker/`, KV-backed, live-smoke-tested) exposing
+the SAME governed operations over HTTP: the public transparency surface
+(`GET /health`, `/fee-schedule`, `/solvency/attestation(s)`, `/funders`)
+needs no credential by design (the whole anti-Zentoshin point); every
+other route is gated behind an API key. See
+[`worker/README.md`](worker/README.md) and
+[`docs/adr/0002-cloudflare-worker-deployment.md`](docs/adr/0002-cloudflare-worker-deployment.md)
+for the full deployment record, including the **honesty boundary**:
+this deployment makes the governed decision+audit+transparency software
+live and real; it attaches no real bank/payment rail, real funder
+capital or real KYC/AML provider, and fabricates none of those.
+
 ## Robotics premise
 
 All cloud-itonami verticals are designed on the premise that a **robot**
