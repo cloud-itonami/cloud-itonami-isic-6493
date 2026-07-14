@@ -6,7 +6,7 @@
   (`local-murakumo.routes`/`local-murakumo.worker`/`local-murakumo.
   kv-store`, the deployment template this build mirrors structurally);
   ADR-2606272330 (`murakumo.cloud`'s own registration/zone history);
-  superproject ADR-2607141900 (this deployment's superproject-level
+  superproject ADR-2607142000 (this deployment's superproject-level
   record)
 
 ## Context
