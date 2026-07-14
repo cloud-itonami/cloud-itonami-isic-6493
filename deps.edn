@@ -6,7 +6,14 @@
  ;; inside the monorepo checkout — a standalone fork should override them
  ;; with git coordinates.
  :deps {io.github.com-junkawasaki/langgraph-clj
-        {:local/root "../../com-junkawasaki/langgraph-clj"}}
+        {:local/root "../../com-junkawasaki/langgraph-clj"}
+        ;; Real capability libraries this actor depends on as LIVE CODE
+        ;; (not just a docstring citation) -- the first cloud-itonami-isic-*
+        ;; actor in this fleet to do so, per explicit owner request. See
+        ;; docs/adr/0003-real-banking-swift-ekyc-integration.md.
+        io.github.kotoba-lang/swift   {:local/root "../../kotoba-lang/swift"}
+        io.github.kotoba-lang/banking {:local/root "../../kotoba-lang/banking"}
+        io.github.kotoba-lang/ekyc    {:local/root "../../kotoba-lang/ekyc"}}
  :aliases
  {;; offline workspace dev -- pin transitive langchain-clj to local checkout
   :dev {:override-deps

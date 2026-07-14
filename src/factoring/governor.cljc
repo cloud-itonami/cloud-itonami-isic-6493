@@ -87,7 +87,8 @@
   human call."
   (:require [factoring.facts :as facts]
             [factoring.registry :as registry]
-            [factoring.store :as store]))
+            [factoring.store :as store]
+            [kotoba.ekyc :as ekyc]))
 
 (def confidence-floor
   "Below this, a clean proposal still escalates to a human."
@@ -107,6 +108,7 @@
 (def ^:private sanctions-checked-ops #{:receivable/verify :advance/fund})
 (def ^:private debtor-concentration-checked-ops #{:receivable/underwrite :advance/fund})
 (def ^:private funder-concentration-checked-ops #{:receivable/underwrite :advance/fund})
+(def ^:private ekyc-checked-ops #{:receivable/verify :advance/fund})
 
 ;; ----------------------------- legal / KYC checks -----------------------------
 
@@ -140,6 +142,49 @@
       (when (or (:client-sanctions-hit? r) (:debtor-sanctions-hit? r))
         [{:rule :sanctions-hit
           :detail (str subject " のクライアントまたは債務者が制裁スクリーニングに該当")}]))))
+
+(defn- ekyc-verification-invalid-violations
+  "For `:receivable/verify` OR `:advance/fund` (re-checked at both, the
+  SAME 'ground truth, independently re-derived at every relevant op'
+  discipline `sanctions-hit-violations` above uses, and for the same
+  reason -- a receivable must never reach an actuation by skipping
+  verify), independently constructs REAL `kotoba.ekyc/verification`
+  records for the CLIENT and the ACCOUNT DEBTOR from the receivable's
+  own ground-truth `:client-*`/`:debtor-*` fields (`factoring.registry/
+  client-ekyc-verification`/`debtor-ekyc-verification`) and runs
+  `kotoba.ekyc/validate` against the REAL 犯収法施行規則 6条1項 method
+  catalog. Either party's verification failing to `:pass` -- an
+  unrecognized method, missing evidence, missing document fields,
+  missing liveness signal, or missing subject-claim attributes -- is a
+  HARD, un-overridable violation. This is the FIRST HARD check in this
+  fleet whose violation carries the full structured result from a
+  dependency library (`:ekyc/disposition`/`:ekyc/reasons`), not only a
+  human-readable `:detail` string -- a real, specific rejection reason
+  a caller can act on, not an abstract boolean.
+
+  This actor's own eKYC scope choice (documented, not silently
+  assumed): 犯収法's identity-verification duty is narrowly about the
+  特定事業者's own CUSTOMER (the client, the seller of the receivable).
+  This governor extends the SAME non-face-to-face verification-method
+  discipline to the ACCOUNT DEBTOR too, as an enhanced-due-diligence
+  posture broader than the statute's narrow customer-only reading --
+  see docs/adr/0003's Decision section."
+  [{:keys [op subject]} st]
+  (when (contains? ekyc-checked-ops op)
+    (let [r (store/receivable st subject)
+          client-result (ekyc/validate (registry/client-ekyc-verification r))
+          debtor-result (ekyc/validate (registry/debtor-ekyc-verification r))
+          violation (fn [party result]
+                      (when (not= :pass (:ekyc.result/disposition result))
+                        {:rule :ekyc-verification-invalid
+                         :ekyc/party party
+                         :ekyc/disposition (:ekyc.result/disposition result)
+                         :ekyc/reasons (:ekyc.result/reasons result)
+                         :detail (str subject " の" (if (= party :client) "クライアント" "債務者")
+                                     "本人確認が無効/不完全 (" (name (:ekyc.result/disposition result))
+                                     "): " (pr-str (:ekyc.result/reasons result)))}))
+          violations (into [] (keep identity) [(violation :client client-result) (violation :debtor debtor-result)])]
+      (when (seq violations) violations))))
 
 (defn- evidence-incomplete-violations
   "For `:advance/fund`, the jurisdiction's required invoice/assignment-
@@ -324,6 +369,7 @@
   [request _context proposal st]
   (let [violation-lists [(spec-basis-violations request proposal)
                          (sanctions-hit-violations request st)
+                         (ekyc-verification-invalid-violations request st)
                          (evidence-incomplete-violations request st)
                          (receivable-status-precondition-violations request st)
                          (double-advance-violations request st)

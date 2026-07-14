@@ -91,6 +91,89 @@
         (is (= :hold (get-in res [:state :disposition])))
         (is (some #{:sanctions-hit} (-> (store/ledger db) last :basis)))))))
 
+;; ----------------------------- eKYC (kotoba.ekyc, real capability library) -----------------------------
+
+(deftest ekyc-unrecognized-method-is-held-and-unoverridable
+  (testing "a client claiming a method NOT in the real 犯収法施行規則 6条1項 catalog -> HARD hold, never reaches a human"
+    (let [[db actor] (fresh)]
+      (store/commit-record! db {:effect :receivable/upsert :value {:id "rcv-1" :client-ekyc-method :fabricated-method}})
+      (let [res (exec-op actor "t20" {:op :receivable/verify :subject "rcv-1"} operator)
+            hold-fact (last (store/ledger db))]
+        (is (= :hold (get-in res [:state :disposition])))
+        (is (some #{:ekyc-verification-invalid} (:basis hold-fact)))
+        (let [v (first (filter #(= :ekyc-verification-invalid (:rule %)) (:violations hold-fact)))]
+          (is (= :client (:ekyc/party v)))
+          (is (= :fail (:ekyc/disposition v)))
+          (is (some #{:unrecognized-method} (:ekyc/reasons v))))
+        (is (nil? (store/verification-of db "rcv-1")))))))
+
+(deftest ekyc-incomplete-evidence-is-held
+  (testing "a real, recognized method (:corp-ro) but missing required evidence -> HARD hold with a real, specific reason (not an abstract boolean)"
+    (let [[db actor] (fresh)]
+      (store/commit-record! db {:effect :receivable/upsert :value {:id "rcv-6" :client-ekyc-evidence []}})
+      (let [res (exec-op actor "t21" {:op :receivable/verify :subject "rcv-6"} operator)
+            hold-fact (last (store/ledger db))]
+        (is (= :hold (get-in res [:state :disposition])))
+        (is (some #{:ekyc-verification-invalid} (:basis hold-fact)))
+        (let [v (first (filter #(= :ekyc-verification-invalid (:rule %)) (:violations hold-fact)))]
+          (is (= :client (:ekyc/party v)))
+          (is (= :incomplete (:ekyc/disposition v)))
+          (is (some #{:missing-evidence} (:ekyc/reasons v)) "a real, specific reason code, not an abstract boolean"))))))
+
+(deftest ekyc-also-blocks-advance-directly-skipping-verify
+  (testing "eKYC ground truth is re-checked at advance/fund too, same discipline as sanctions-hit"
+    (let [[db actor] (fresh)]
+      (store/commit-record! db {:effect :receivable/upsert :value {:id "rcv-4" :debtor-ekyc-method :fabricated-method}})
+      (underwrite! actor "rcv-4" "t22pre")
+      (let [res (exec-op actor "t22" {:op :advance/fund :subject "rcv-4"} operator)]
+        (is (= :hold (get-in res [:state :disposition])))
+        (is (some #{:ekyc-verification-invalid} (-> (store/ledger db) last :basis)))))))
+
+(deftest ekyc-clean-verification-commits-a-real-ekyc-record
+  (testing "a legally recognized method with complete evidence -> commits, and the stored verification carries a REAL kotoba.ekyc/validate result (not a placeholder)"
+    (let [[db actor] (fresh)]
+      (verify! actor "rcv-1" "t23")
+      (let [ekyc-result (:ekyc (store/verification-of db "rcv-1"))]
+        (is (= :pass (:ekyc.result/disposition (:client ekyc-result))))
+        (is (= :pass (:ekyc.result/disposition (:debtor ekyc-result))))
+        (is (= :not-applicable (:ekyc.result/assurance-level (:client ekyc-result)))
+            "corp-ro's real, honest IAL mapping (NIST IAL is a natural-person framework -- see kotoba.ekyc's own docstring)")))))
+
+;; ----------------------------- real settlement-instruction artifacts (kotoba.swift / kotoba.banking.api) -----------------------------
+
+(deftest advance-and-settle-produce-real-settlement-instruction-artifacts
+  (testing "rcv-1 is JPY -> auto-routed to a REAL SWIFT MT103 wire string"
+    (let [[db actor] (fresh)]
+      (verify! actor "rcv-1" "t24")
+      (underwrite! actor "rcv-1" "t24")
+      (attest! actor "t24b")
+      (advance! actor "rcv-1" "t24")
+      (let [rec (first (store/advance-history db))
+            si (get rec "settlement_instruction")]
+        (is (= "swift-mt103" (get si "rail")))
+        (is (re-find #"^\{1:F01FCTRDEFFXXXX" (get-in si ["payload" :swift/wire])) "a real, well-formed SWIFT MT wire string, not a placeholder")
+        (is (re-find #":32A:\d{6}JPY\d+," (get-in si ["payload" :swift/wire])) "field 32A carries the real value-date+currency+comma-terminated amount"))
+      (exec-op actor "t24-collect" {:op :receivable/collect :subject "rcv-1"} operator)
+      (approve! actor "t24-collect")
+      (exec-op actor "t24-settle" {:op :reserve/settle :subject "rcv-1"} operator)
+      (approve! actor "t24-settle")
+      (let [rec (first (store/settlement-history db))
+            si (get rec "settlement_instruction")]
+        (is (= "swift-mt103" (get si "rail")))
+        (is (= "settle" (get si "leg"))))))
+  (testing "rcv-7 is EUR (fee-rate correctly matches its tier, unlike rcv-5) -> auto-routed to a REAL XS2A payment-initiation-request JSON payload"
+    (let [[db actor] (fresh)]
+      (verify! actor "rcv-7" "t25")
+      (underwrite! actor "rcv-7" "t25")
+      (attest! actor "t25b")
+      (advance! actor "rcv-7" "t25")
+      (let [rec (first (store/advance-history db))
+            si (get rec "settlement_instruction")]
+        (is (= "xs2a" (get si "rail")))
+        (is (= "DE75512108001245126199" (get-in si ["payload" "creditorAccount" "iban"])))
+        (is (= "EUR" (get-in si ["payload" "instructedAmount" "currency"])))
+        (is (string? (get-in si ["payload" "instructedAmount" "amount"])) "amountValue is a decimal STRING per the real XS2A schema, not a JSON number")))))
+
 ;; ----------------------------- status lifecycle -----------------------------
 
 (deftest advance-without-underwrite-is-held

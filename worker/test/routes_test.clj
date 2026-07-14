@@ -75,12 +75,18 @@
   (testing "found live via this deployment's own smoke test: a JSON body's :debtor-risk-tier
             arrives as a STRING (JSON has no keyword type); without coercion, fee-rate-mismatch
             would spuriously fire forever because the schedule lookup is keyword-keyed"
-    (let [s (store/seed-db)]
+    (let [s (store/seed-db)
+          corp-evidence [{:kind "name-and-registered-office-declaration" :ref "d1"}
+                        {:kind "registry-information-lookup" :ref "r1" :fields-confirmed ["name" "registered-office"]}]]
       (routes/handle s (req :post "/receivables" {}
                             {:id "json-intake-1" :client-id "c" :client-name "n" :debtor-id "d"
                              :debtor-name "dn" :debtor-credit-limit 1000000
                              :debtor-risk-tier "tier-a" :fee-rate 0.02 :face-amount 100000
-                             :jurisdiction "JPN" :funder-id "funder-1"
+                             :jurisdiction "JPN" :funder-id "funder-1" :currency "JPY" :client-bic "GRLFJPJTXXX"
+                             :client-address "1 Main St" :client-subject-type "corporate"
+                             :client-ekyc-method "corp-ro" :client-ekyc-evidence corp-evidence
+                             :debtor-address "2 Side St" :debtor-subject-type "corporate"
+                             :debtor-ekyc-method "corp-ro" :debtor-ekyc-evidence corp-evidence
                              :client-sanctions-hit? false :debtor-sanctions-hit? false}))
       (is (= :tier-a (:debtor-risk-tier (store/receivable s "json-intake-1"))) "coerced to a keyword, not left as a string")
       (routes/handle s (req :post "/receivables/json-intake-1/verify"))
@@ -126,10 +132,12 @@
     (is (= 200 (:status (routes/handle s (req :post "/receivables/rcv-1/verify")))))
     (is (= 200 (:status (routes/handle s (req :post "/receivables/rcv-1/underwrite")))))
     (is (= 200 (:status (routes/handle s (req :post "/solvency/attest")))))
-    (testing "actuation 1: advance"
+    (testing "actuation 1: advance -- the HTTP response carries the REAL settlement-instruction artifact"
       (let [r (routes/handle s (req :post "/receivables/rcv-1/advance"))]
         (is (= 200 (:status r)))
-        (is (= :advanced (:status (:receivable (:body r)))))))
+        (is (= :advanced (:status (:receivable (:body r)))))
+        (is (= "swift-mt103" (get-in r [:body :settlement-instruction "rail"]))
+            "rcv-1 is JPY -- auto-routed to MT103, and the caller can SEE it in the response")))
     (testing "actuation 1 cannot be repeated"
       (let [r (routes/handle s (req :post "/receivables/rcv-1/advance"))]
         (is (= 409 (:status r)))
@@ -148,3 +156,32 @@
   (let [s (store/seed-db)
         r (routes/handle s (req :get "/nope"))]
     (is (= 404 (:status r)))))
+
+;; ----------------------------- real capability-library integration (kotoba.ekyc / kotoba.swift / kotoba.banking.api) -----------------------------
+
+(deftest settlement-account-admin-endpoints
+  (let [s (store/empty-db)]
+    (is (= 404 (:status (routes/handle s (req :get "/settlement-account")))) "unconfigured by default")
+    (let [r (routes/handle s (req :post "/settlement-account" {}
+                                  {:iban "DE89370400440532013000" :bic "FCTRDEFFXXX"
+                                   :account-holder-name "Demo Factor"}))]
+      (is (= 201 (:status r))))
+    (let [r (routes/handle s (req :get "/settlement-account"))]
+      (is (= 200 (:status r)))
+      (is (= "FCTRDEFFXXX" (:bic (:body r)))))))
+
+(deftest verify-response-carries-a-real-ekyc-record
+  (let [s (store/seed-db)
+        r (routes/handle s (req :post "/receivables/rcv-1/verify"))
+        ekyc (get-in r [:body :record :payload :ekyc])]
+    (is (= 200 (:status r)))
+    (is (= :pass (:ekyc.result/disposition (:client ekyc))))
+    (is (= :pass (:ekyc.result/disposition (:debtor ekyc))))))
+
+(deftest unrecognized-ekyc-method-hard-holds-through-the-http-layer-even-as-a-json-string
+  (testing "a JSON-submitted (string) client-ekyc-method that isn't a real 犯収法 method -> HARD hold via the HTTP API"
+    (let [s (store/seed-db)]
+      (routes/handle s (req :post "/receivables" {} {:id "rcv-1" :client-ekyc-method "not-a-real-method"}))
+      (let [r (routes/handle s (req :post "/receivables/rcv-1/verify"))]
+        (is (= 409 (:status r)))
+        (is (some #{:ekyc-verification-invalid} (mapv :rule (:violations (:body r)))))))))

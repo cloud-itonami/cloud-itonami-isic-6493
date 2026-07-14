@@ -60,28 +60,61 @@
                                          funder!`'s own docstring for
                                          why this is a deliberate,
                                          reasoned exception)
+    GET  /settlement-account             this deployment's own settlement
+                                         account, or 404 if unconfigured
+                                         -- ADMIN read (carries this
+                                         factor's own banking details)
+    POST /settlement-account             register this factor's own
+                                         settlement account ({:iban :bic
+                                         :account-holder-name}) -- ADMIN,
+                                         same admin-not-governed posture
+                                         as POST /funders
     GET  /receivables                   list all receivables (carries
                                          client/account-debtor
                                          identifying data)
     GET  /receivables/<id>              one receivable, 404 if unknown
     POST /receivables                   :receivable/intake (body =
                                          the new receivable's fields)
-    POST /receivables/<id>/verify       :receivable/verify
+    POST /receivables/<id>/verify       :receivable/verify -- now also
+                                         constructs and validates a REAL
+                                         `kotoba.ekyc` verification
+                                         record for the client AND the
+                                         account debtor (see `factoring.
+                                         governor/ekyc-verification-
+                                         invalid-violations`); the
+                                         committed verification's `:ekyc`
+                                         field carries the actual
+                                         `kotoba.ekyc/validate` result
     POST /receivables/<id>/underwrite   :receivable/underwrite
     POST /receivables/<id>/advance      :advance/fund -- **ACTUATION 1**
                                          (a governed decision only; see
                                          this ns's own honesty-boundary
-                                         note below)
+                                         note below). On commit, the
+                                         response ALSO carries a
+                                         `:settlement-instruction` --
+                                         the REAL XS2A payment-
+                                         initiation JSON payload or
+                                         SWIFT MT103 wire string this
+                                         actuation produced (`factoring.
+                                         registry/build-settlement-
+                                         instruction`) -- so an
+                                         authorized caller SEES the
+                                         exact, spec-correct payment
+                                         instruction, not just a
+                                         disposition
     POST /receivables/<id>/collect      :receivable/collect
     POST /receivables/<id>/settle       :reserve/settle -- **ACTUATION 2**
-                                         (same honesty-boundary note)
+                                         (same honesty-boundary note;
+                                         also carries a REAL settlement-
+                                         instruction artifact for the
+                                         reserve-release leg)
     POST /solvency/attest               :solvency/attest -- publishes a
                                          fresh, governor-verified
                                          ground-truth-recomputed
                                          attestation
     GET  /ledger                        the full audit ledger
 
-  ## Honesty boundary (verbatim from this deployment's own design brief)
+  ## Honesty boundary (verbatim from this deployment's own design brief -- restated, sharper, now that real payment/eKYC artifacts are in play)
 
   This deployment makes the GOVERNED DECISION software live, callable
   and durable at a real HTTPS URL. It does NOT wire any real bank
@@ -93,11 +126,23 @@
   entry -- but no real currency moves anywhere, because no real bank/
   payment integration is attached, and this deployment does not
   fabricate one (no fake payment-processor call, no pretend wire
-  transfer, no invented funder API). The value delivered is a live,
+  transfer, no invented funder API). As of this integration, the
+  ARTIFACTS this actor produces are themselves real and spec-conformant
+  -- a genuine SWIFT MT103 wire string (`kotoba.swift`), a genuine
+  Berlin Group XS2A payment-initiation JSON payload (`kotoba.banking.
+  api`), a genuine 犯収法施行規則-conformant eKYC verification-method
+  validation (`kotoba.ekyc`) -- but EVERY one of them is constructed,
+  stored in the audit ledger, and returned in the API response, and
+  NEVER transmitted anywhere: no real SWIFTNet connection, no real bank
+  API call, no real eKYC vendor call. This actor produces exactly what
+  a licensed operator's real banking/eKYC integration would need to
+  receive and forward; the forwarding step itself remains explicitly
+  out of scope and unattached. The value delivered is a live,
   production, governed decision+transparency service that a real
-  licensed operator could point real capital and real banking rails at
-  -- the governance/audit/transparency machinery is fully live and
-  real; the money-movement backend is intentionally not attached."
+  licensed operator could point real capital, real banking rails, and a
+  real eKYC vendor at -- the governance/audit/transparency machinery
+  (including the real artifact CONSTRUCTION) is fully live and real;
+  the transmission/forwarding backend is intentionally not attached."
   (:require [clojure.string :as str]
             [factoring.operation :as op]
             [factoring.registry :as registry]
@@ -153,44 +198,87 @@
               {:thread-id tid :resume? true})
       r1)))
 
+(defn- settlement-instruction-for
+  "The just-committed advance/settlement record's REAL settlement-
+  instruction artifact (see `factoring.store/advance!`/`settle!`'s own
+  docstrings), or nil for any other op. This is where an authorized
+  caller SEES the exact, spec-correct XS2A payload or SWIFT MT103 wire
+  string this actuation produced -- `factoring.operation`'s own
+  `:record` state (the LLM proposal's shape) does not carry it; only
+  the Store's committed draft-record history does."
+  [op store]
+  (case op
+    :advance/fund (get (last (store/advance-history store)) "settlement_instruction")
+    :reserve/settle (get (last (store/settlement-history store)) "settlement_instruction")
+    nil))
+
 (defn- op-response
   "Shapes an HTTP response from a `run-op!` result. :commit -> 200,
   :hold -> 409 (the operation was refused by the governor and cannot be
   retried as-is -- the caller must address the cited violation), any
-  other shape -> 500 (a bug, never expected)."
-  [result subject store]
-  (let [state (:state result)
-        disposition (:disposition state)
-        verdict (:verdict state)]
-    (case disposition
-      :commit {:status 200
-               :body {:disposition :commit
-                      :record (:record state)
-                      :basis (:cites (:record state))
-                      :receivable (when subject (store/receivable store subject))}}
-      :hold {:status 409
-             :body {:disposition :hold
-                    :violations (:violations verdict)
-                    :confidence (:confidence verdict)}}
-      {:status 500 :body {:error "unexpected disposition" :disposition disposition}})))
+  other shape -> 500 (a bug, never expected). `op` is threaded through
+  ONLY to decide whether to attach a settlement-instruction artifact
+  (see `settlement-instruction-for`) -- nil is a no-op elsewhere."
+  ([result subject store] (op-response result subject store nil))
+  ([result subject store op]
+   (let [state (:state result)
+         disposition (:disposition state)
+         verdict (:verdict state)]
+     (case disposition
+       :commit (let [si (settlement-instruction-for op store)]
+                 (cond-> {:status 200
+                         :body {:disposition :commit
+                                :record (:record state)
+                                :basis (:cites (:record state))
+                                :receivable (when subject (store/receivable store subject))}}
+                   si (assoc-in [:body :settlement-instruction] si)))
+       :hold {:status 409
+              :body {:disposition :hold
+                     :violations (:violations verdict)
+                     :confidence (:confidence verdict)}}
+       {:status 500 :body {:error "unexpected disposition" :disposition disposition}}))))
+
+(defn- coerce-ekyc-evidence
+  "One evidence map's `:kind` and `:fields-confirmed` also need to be
+  Clojure keywords (`kotoba.ekyc/evidence`'s `kind` is compared against
+  keyword catalog values, `:fields-confirmed` against keyword document-
+  field sets) -- same JSON-string-vs-keyword problem as `:debtor-risk-
+  tier` below, one level deeper."
+  [e]
+  (cond-> e
+    (string? (:kind e)) (update :kind keyword)
+    (sequential? (:fields-confirmed e)) (update :fields-confirmed #(mapv (fn [f] (if (string? f) (keyword f) f)) %))))
 
 (defn- coerce-receivable-patch
-  "JSON has no keyword type, but `:debtor-risk-tier` and `:status` are
-  compared as Clojure KEYWORDS everywhere downstream -- the published
-  `factoring.registry/fee-schedule` is keyed by keyword tier
-  (`:tier-a`/`:tier-b`/`:tier-c`), and every `factoring.governor`
-  status-precondition check compares a keyword status value. A caller
-  submitting `{\"debtor-risk-tier\": \"tier-a\"}` over JSON would
-  otherwise silently fail `fee-rate-mismatch-violations` forever (the
-  schedule lookup on the STRING \"tier-a\" never matches the KEYWORD
-  key `:tier-a`) -- found live, via this deployment's own smoke test,
-  not by inspection. Coerced once, at the intake boundary, the same
-  kind of boundary-coercion `local-murakumo.routes`'s own
-  `catalog-opts` does for its query-string values."
+  "JSON has no keyword type, but `:debtor-risk-tier`/`:status`/
+  `:client-subject-type`/`:debtor-subject-type`/`:client-ekyc-method`/
+  `:debtor-ekyc-method`/`:settlement-rail` (and evidence items' own
+  `:kind`/`:fields-confirmed`) are all compared as Clojure KEYWORDS
+  somewhere downstream -- the published `factoring.registry/fee-
+  schedule` is keyed by keyword tier, every `factoring.governor`
+  status-precondition check compares a keyword status value, and
+  `kotoba.ekyc/method`/`legally-recognized-method?` are keyword-keyed
+  catalog lookups. A caller submitting `{\"debtor-risk-tier\":
+  \"tier-a\"}` (or `{\"client-ekyc-method\": \"corp-ro\"}`) over JSON
+  would otherwise silently fail `fee-rate-mismatch-violations` (or
+  spuriously HARD-hold on `:unrecognized-method`) forever -- the
+  `:debtor-risk-tier` case was found live, via this deployment's own
+  smoke test, not by inspection; the eKYC fields are the SAME class of
+  bug, fixed proactively here rather than waiting to rediscover it a
+  second time. Coerced once, at the intake boundary, the same kind of
+  boundary-coercion `local-murakumo.routes`'s own `catalog-opts` does
+  for its query-string values."
   [patch]
   (cond-> patch
-    (string? (:debtor-risk-tier patch)) (update :debtor-risk-tier keyword)
-    (string? (:status patch)) (update :status keyword)))
+    (string? (:debtor-risk-tier patch))    (update :debtor-risk-tier keyword)
+    (string? (:status patch))              (update :status keyword)
+    (string? (:client-subject-type patch)) (update :client-subject-type keyword)
+    (string? (:debtor-subject-type patch)) (update :debtor-subject-type keyword)
+    (string? (:client-ekyc-method patch))  (update :client-ekyc-method keyword)
+    (string? (:debtor-ekyc-method patch))  (update :debtor-ekyc-method keyword)
+    (string? (:settlement-rail patch))     (update :settlement-rail keyword)
+    (sequential? (:client-ekyc-evidence patch)) (update :client-ekyc-evidence #(mapv coerce-ekyc-evidence %))
+    (sequential? (:debtor-ekyc-evidence patch)) (update :debtor-ekyc-evidence #(mapv coerce-ekyc-evidence %))))
 
 (defn- op!
   "Builds and runs a `{:op op-kw :subject subject}` request (plus
@@ -201,7 +289,7 @@
   POST body on those routes is ignored by design, not lost by
   omission)."
   [store op-kw subject context & [extra]]
-  (op-response (run-op! store (merge {:op op-kw :subject subject} extra) context) subject store))
+  (op-response (run-op! store (merge {:op op-kw :subject subject} extra) context) subject store op-kw))
 
 (defn handle
   "Route `{:method :path :query :body}` -> `{:status :body}`. `context`
@@ -233,6 +321,21 @@
        (if (and (:id body) (:name body) (:funding-capacity body))
          {:status 201 :body (store/register-funder! store (select-keys body [:id :name :funding-capacity]))}
          {:status 400 :body {:error "funder registration needs :id, :name and :funding-capacity"}})
+
+       ;; ── settlement account (admin, not governed -- see `factoring.store/
+       ;; register-settlement-account!`'s own docstring; this is the ordering/
+       ;; debtor side `factoring.registry/build-settlement-instruction` needs
+       ;; to construct a real settlement-instruction artifact at all) ────────
+       (and (= method :get) (= seg ["settlement-account"]))
+       (if-let [a (store/settlement-account store)]
+         {:status 200 :body a}
+         {:status 404 :body {:error "no settlement account configured yet"}})
+
+       (and (= method :post) (= seg ["settlement-account"]))
+       (if (and (:iban body) (:bic body) (:account-holder-name body))
+         {:status 201 :body (store/register-settlement-account!
+                             store (select-keys body [:iban :bic :account-holder-name]))}
+         {:status 400 :body {:error "settlement-account registration needs :iban, :bic and :account-holder-name"}})
 
        ;; ── receivables (reads) ────────────────────────────────────────────
        (and (= method :get) (= seg ["receivables"]))

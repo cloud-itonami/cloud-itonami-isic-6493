@@ -122,6 +122,25 @@
     (is (= 9000000 (:funding-capacity (store/funder s "funder-1"))))
     (is (= 3 (count (store/all-funders s))) "still 3 funders, not a duplicate")))
 
+;; ----------------------------- settlement account (admin, not governed) -----------------------------
+
+(deftest settlement-account-is-nil-until-configured
+  (doseq [[label s] [["MemStore" (store/empty-db)] ["DatomicStore" (store/datomic-store)]]]
+    (testing label
+      (is (nil? (store/settlement-account s))))))
+
+(deftest register-settlement-account-is-visible-immediately-on-both-backends
+  (doseq [[label s] [["MemStore" (store/empty-db)] ["DatomicStore" (store/datomic-store)]]]
+    (testing label
+      (store/register-settlement-account! s {:iban "DE89370400440532013000" :bic "FCTRDEFFXXX"
+                                              :account-holder-name "Demo Factor"})
+      (is (= "DE89370400440532013000" (:iban (store/settlement-account s))))
+      (is (= "FCTRDEFFXXX" (:bic (store/settlement-account s)))))))
+
+(deftest seed-db-comes-pre-configured-with-a-demo-settlement-account
+  (is (some? (store/settlement-account (store/seed-db))))
+  (is (some? (store/settlement-account (store/datomic-seed-db)))))
+
 ;; ----------------------------- KV snapshot/hydrate (worker persistence boundary) -----------------------------
 
 (deftest empty-db-has-no-demo-fixture-data

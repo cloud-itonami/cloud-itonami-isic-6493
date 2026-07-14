@@ -61,7 +61,9 @@
   (commit-record! [s record] "apply a committed op's record to the SSoT")
   (append-ledger! [s fact]   "append one immutable decision fact")
   (with-receivables [s receivables] "replace/seed the receivable directory (map id->receivable)")
-  (register-funder! [s funder] "administrative: add/update a funder record ({:id :name :funding-capacity}) -- ground truth entered by the operator, the SAME kind of static reference data `demo-funders`/`:debtor-credit-limit` already are. Deliberately NOT run through the LLM-advisor/governor pipeline: there is no proposal-fabrication or actuation risk in recording who a funding partner is and their own committed capacity, unlike a receivable's advance/settlement -- see `worker/routes.cljc`'s own docstring for the full reasoning behind this deployment's admin-vs-governed-op split"))
+  (register-funder! [s funder] "administrative: add/update a funder record ({:id :name :funding-capacity}) -- ground truth entered by the operator, the SAME kind of static reference data `demo-funders`/`:debtor-credit-limit` already are. Deliberately NOT run through the LLM-advisor/governor pipeline: there is no proposal-fabrication or actuation risk in recording who a funding partner is and their own committed capacity, unlike a receivable's advance/settlement -- see `worker/routes.cljc`'s own docstring for the full reasoning behind this deployment's admin-vs-governed-op split")
+  (settlement-account [s] "this deployment's own settlement account ({:iban :bic :account-holder-name}), or nil if not yet configured -- the ordering/debtor side `factoring.registry/build-settlement-instruction` needs to construct a real XS2A/MT103 settlement-instruction artifact")
+  (register-settlement-account! [s account] "administrative, same admin-not-governed posture as register-funder! -- recording THIS factor's own bank account details carries no proposal-fabrication or actuation risk"))
 
 ;; ----------------------------- demo data -----------------------------
 
@@ -75,59 +77,132 @@
    "funder-2" {:id "funder-2" :name "Meridian Trade Finance" :funding-capacity 3000000}
    "funder-3" {:id "funder-3" :name "Nordbrücke Receivables Fund" :funding-capacity 2000000}})
 
+(def demo-settlement-account
+  "This (fictional) demo factor's own settlement account, domiciled with a
+  fictional German bank (a real, valid mod-97 IBAN shape + a structurally-
+  valid BIC, matching that same fictional bank's shape -- no real bank
+  named) -- the ordering/debtor side of every real settlement-instruction
+  artifact `factoring.registry/build-settlement-instruction` constructs.
+  Used for BOTH rails: XS2A for EUR/USD/GBP-ish receivables (an EU/PSD2-
+  interoperable bank initiating its own payment), and MT103 for JPY
+  receivables (the SAME bank sending an international correspondent wire
+  to the client's Japanese bank -- realistic; German banks routinely
+  originate SWIFT wires to Japanese beneficiaries)."
+  {:iban "DE89370400440532013000"
+   :bic "FCTRDEFFXXX"
+   :account-holder-name "cloud-itonami-isic-6493 Demo Factoring Ltd"})
+
+(def ^:private demo-corp-evidence
+  "Shared demo eKYC evidence for the :corp-ro method (name+registered-
+  office declaration + registry-information-lookup) -- see `kotoba.
+  ekyc/method-catalog`'s corp-ro entry. Fictional refs, matching every
+  other demo-data value in this catalog."
+  [{:kind :name-and-registered-office-declaration :ref "decl-1"}
+   {:kind :registry-information-lookup :ref "registry-1" :fields-confirmed [:name :registered-office]}])
+
+(defn- demo-ekyc-fields
+  "Shared demo eKYC fields (real, spec-conformant `kotoba.ekyc` method +
+  complete evidence, corporate subject type) for both the client and the
+  account debtor of a demo receivable -- see `factoring.registry/
+  client-ekyc-verification`/`debtor-ekyc-verification`."
+  [client-address debtor-address]
+  {:client-address client-address :client-subject-type :corporate
+   :client-ekyc-method :corp-ro :client-ekyc-evidence demo-corp-evidence
+   :debtor-address debtor-address :debtor-subject-type :corporate
+   :debtor-ekyc-method :corp-ro :debtor-ekyc-evidence demo-corp-evidence})
+
 (defn demo-data
   "A small, self-contained receivable set so the actor + tests run
-  offline."
+  offline. Every receivable now also carries real eKYC fields (`kotoba.
+  ekyc`) and real settlement-instruction banking details (`kotoba.swift`/
+  `kotoba.banking.api`) -- JPY receivables (no IBAN scheme in Japan) get
+  a `:client-bic` and route through MT103; the rest get either a real
+  IBAN (`:client-iban`, DEU/GBR) or a plain non-IBAN account number
+  (USA -- genuinely has no IBAN scheme either, correctly falls back to
+  `kotoba.banking.api`'s `other`/proprietary-ID accountReference form)."
   []
   {:receivables
-   {"rcv-1" {:id "rcv-1" :client-id "client-1" :client-name "GreenLeaf Logistics K.K."
-             :debtor-id "debtor-1" :debtor-name "Meiwa Trading Co." :debtor-credit-limit 5000000
-             :debtor-risk-tier :tier-a :fee-rate 0.02
-             :face-amount 2000000 :jurisdiction "JPN" :funder-id "funder-1"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
-    "rcv-2" {:id "rcv-2" :client-id "client-2" :client-name "Acme Textiles Ltd"
-             :debtor-id "debtor-2" :debtor-name "Camden Wholesale plc" :debtor-credit-limit 1000000
-             :debtor-risk-tier :tier-b :fee-rate 0.03
-             :face-amount 400000 :jurisdiction "ATL" :funder-id "funder-2"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
-    "rcv-3" {:id "rcv-3" :client-id "client-3" :client-name "Rhein Fabrik GmbH"
-             :debtor-id "debtor-3" :debtor-name "Sanctioned Trading Corp" :debtor-credit-limit 1000000
-             :debtor-risk-tier :tier-c :fee-rate 0.05
-             :face-amount 500000 :jurisdiction "DEU" :funder-id "funder-3"
-             :client-sanctions-hit? false :debtor-sanctions-hit? true :status :submitted}
-    "rcv-4" {:id "rcv-4" :client-id "client-4" :client-name "Cascade Builders Inc"
-             :debtor-id "debtor-1" :debtor-name "Meiwa Trading Co." :debtor-credit-limit 5000000
-             :debtor-risk-tier :tier-a :fee-rate 0.02
-             :face-amount 3500000 :jurisdiction "USA" :funder-id "funder-1"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
-    "rcv-5" {:id "rcv-5" :client-id "client-5" :client-name "Solent Marine Supplies"
-             :debtor-id "debtor-4" :debtor-name "Northgate Retail Group" :debtor-credit-limit 2000000
-             :debtor-risk-tier :tier-a :fee-rate 0.99
-             :face-amount 300000 :jurisdiction "GBR" :funder-id "funder-2"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
-    "rcv-6" {:id "rcv-6" :client-id "client-6" :client-name "Fujimori Precision Parts K.K."
-             :debtor-id "debtor-5" :debtor-name "Cascadia Assembly Group" :debtor-credit-limit 5000000
-             :debtor-risk-tier :tier-a :fee-rate 0.02
-             :face-amount 3000000 :jurisdiction "USA" :funder-id "funder-1"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
-    "rcv-7" {:id "rcv-7" :client-id "client-7" :client-name "Tidewater Exports LLC"
-             :debtor-id "debtor-6" :debtor-name "Baltic Freight Holdings" :debtor-credit-limit 5000000
-             :debtor-risk-tier :tier-b :fee-rate 0.03
-             :face-amount 200000 :jurisdiction "DEU" :funder-id "funder-3"
-             :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}}})
+   {"rcv-1" (merge {:id "rcv-1" :client-id "client-1" :client-name "GreenLeaf Logistics K.K."
+                    :debtor-id "debtor-1" :debtor-name "Meiwa Trading Co." :debtor-credit-limit 5000000
+                    :debtor-risk-tier :tier-a :fee-rate 0.02
+                    :face-amount 2000000 :jurisdiction "JPN" :funder-id "funder-1" :currency "JPY"
+                    :client-bic "GRLFJPJTXXX"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "1-1 Otemachi, Chiyoda-ku, Tokyo" "2-2 Marunouchi, Chiyoda-ku, Tokyo"))
+    "rcv-2" (merge {:id "rcv-2" :client-id "client-2" :client-name "Acme Textiles Ltd"
+                    :debtor-id "debtor-2" :debtor-name "Camden Wholesale plc" :debtor-credit-limit 1000000
+                    :debtor-risk-tier :tier-b :fee-rate 0.03
+                    :face-amount 400000 :jurisdiction "ATL" :funder-id "funder-2" :currency "USD"
+                    :client-iban "021000021200011122"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "500 Fifth Ave, New York, NY" "10 Camden High St, London"))
+    "rcv-3" (merge {:id "rcv-3" :client-id "client-3" :client-name "Rhein Fabrik GmbH"
+                    :debtor-id "debtor-3" :debtor-name "Sanctioned Trading Corp" :debtor-credit-limit 1000000
+                    :debtor-risk-tier :tier-c :fee-rate 0.05
+                    :face-amount 500000 :jurisdiction "DEU" :funder-id "funder-3" :currency "EUR"
+                    :client-iban "FR1420041010050500013M02606"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? true :status :submitted}
+                   (demo-ekyc-fields "Rheinstraße 1, Frankfurt" "Unknown, Sanctioned Territory"))
+    "rcv-4" (merge {:id "rcv-4" :client-id "client-4" :client-name "Cascade Builders Inc"
+                    :debtor-id "debtor-1" :debtor-name "Meiwa Trading Co." :debtor-credit-limit 5000000
+                    :debtor-risk-tier :tier-a :fee-rate 0.02
+                    :face-amount 3500000 :jurisdiction "USA" :funder-id "funder-1" :currency "USD"
+                    :client-iban "021000021200099887"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "1200 Cascade Ave, Seattle, WA" "2-2 Marunouchi, Chiyoda-ku, Tokyo"))
+    "rcv-5" (merge {:id "rcv-5" :client-id "client-5" :client-name "Solent Marine Supplies"
+                    :debtor-id "debtor-4" :debtor-name "Northgate Retail Group" :debtor-credit-limit 2000000
+                    :debtor-risk-tier :tier-a :fee-rate 0.99
+                    :face-amount 300000 :jurisdiction "GBR" :funder-id "funder-2" :currency "GBP"
+                    :client-iban "GB82WEST12345698765432"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "Solent Way, Southampton" "1 Northgate Rd, Manchester"))
+    "rcv-6" (merge {:id "rcv-6" :client-id "client-6" :client-name "Fujimori Precision Parts K.K."
+                    :debtor-id "debtor-5" :debtor-name "Cascadia Assembly Group" :debtor-credit-limit 5000000
+                    :debtor-risk-tier :tier-a :fee-rate 0.02
+                    :face-amount 3000000 :jurisdiction "USA" :funder-id "funder-1" :currency "USD"
+                    :client-iban "021000021200055443"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "3-3 Nihonbashi, Chuo-ku, Tokyo" "800 Cascadia Blvd, Portland, OR"))
+    "rcv-7" (merge {:id "rcv-7" :client-id "client-7" :client-name "Tidewater Exports LLC"
+                    :debtor-id "debtor-6" :debtor-name "Baltic Freight Holdings" :debtor-credit-limit 5000000
+                    :debtor-risk-tier :tier-b :fee-rate 0.03
+                    :face-amount 200000 :jurisdiction "DEU" :funder-id "funder-3" :currency "EUR"
+                    :client-iban "DE75512108001245126199"
+                    :client-sanctions-hit? false :debtor-sanctions-hit? false :status :submitted}
+                   (demo-ekyc-fields "1 Tidewater Way, Norfolk, VA" "Hafenstraße 5, Hamburg"))}})
 
 ;; ----------------------------- shared commit logic -----------------------------
+
+(defn- settlement-instruction->record-entry
+  "The keyword-keyed `factoring.registry/build-settlement-instruction`
+  result -> a string-keyed entry consistent with the rest of this
+  actor's JSON-shaped draft records. nil (no key added) when no
+  settlement account is configured yet -- see `build-settlement-
+  instruction`'s own docstring."
+  [si]
+  (when si
+    (cond-> {"rail" (name (:settlement/rail si)) "leg" (name (:settlement/leg si))}
+      (:settlement/payload si) (assoc "payload" (:settlement/payload si))
+      (:settlement/error si)   (assoc "error" (:settlement/error si)))))
 
 (defn- advance!
   "Backend-agnostic `:advance/mark-funded` -- looks up the receivable
   via the protocol and drafts the advance record (**actuation 1**),
-  returning {:result .. :receivable-patch ..} for the caller to
-  persist."
+  now including a REAL settlement-instruction artifact (XS2A payload or
+  SWIFT MT103 wire string, per `factoring.registry/build-settlement-
+  instruction` -- NEVER transmitted anywhere, see that fn's own
+  honesty-boundary docstring), returning {:result .. :receivable-patch
+  ..} for the caller to persist."
   [s receivable-id]
   (let [r (receivable s receivable-id)
         seq-n (next-sequence s :advance (:jurisdiction r))
         result (registry/register-advance
-                receivable-id (:face-amount r) (:jurisdiction r) seq-n)]
+                receivable-id (:face-amount r) (:jurisdiction r) seq-n)
+        advance-amount (get-in result ["record" "advance_amount"])
+        si (registry/build-settlement-instruction
+            r (settlement-account s) :advance advance-amount (get result "advance_number"))
+        result (cond-> result si (update "record" assoc "settlement_instruction" (settlement-instruction->record-entry si)))]
     {:result result
      :receivable-patch {:status :advanced
                         :advance-number (get result "advance_number")}}))
@@ -135,13 +210,19 @@
 (defn- settle!
   "Backend-agnostic `:settlement/mark-settled` -- looks up the
   receivable via the protocol and drafts the settlement record
-  (**actuation 2**), returning {:result .. :receivable-patch ..} for
-  the caller to persist."
+  (**actuation 2**), now including a REAL settlement-instruction
+  artifact for the reserve-release leg, same discipline as `advance!`
+  above, returning {:result .. :receivable-patch ..} for the caller to
+  persist."
   [s receivable-id]
   (let [r (receivable s receivable-id)
         seq-n (next-sequence s :settlement (:jurisdiction r))
         result (registry/register-settlement
-                receivable-id (:face-amount r) (:fee-rate r) (:jurisdiction r) seq-n)]
+                receivable-id (:face-amount r) (:fee-rate r) (:jurisdiction r) seq-n)
+        settlement-amount (get-in result ["record" "settlement_amount"])
+        si (registry/build-settlement-instruction
+            r (settlement-account s) :settle settlement-amount (get result "settlement_number"))
+        result (cond-> result si (update "record" assoc "settlement_instruction" (settlement-instruction->record-entry si)))]
     {:result result
      :receivable-patch {:status :settled
                         :settlement-number (get result "settlement_number")}}))
@@ -223,7 +304,9 @@
     s)
   (append-ledger! [_ fact] (swap! a update :ledger conj fact) fact)
   (with-receivables [s receivables] (when (seq receivables) (swap! a assoc :receivables receivables)) s)
-  (register-funder! [_ {:keys [id] :as funder}] (swap! a assoc-in [:funders id] funder) funder))
+  (register-funder! [_ {:keys [id] :as funder}] (swap! a assoc-in [:funders id] funder) funder)
+  (settlement-account [_] (:settlement-account @a))
+  (register-settlement-account! [_ account] (swap! a assoc :settlement-account account) account))
 
 (defn empty-state
   "The genuinely EMPTY book shape (no demo/fixture data) -- what a real
@@ -240,7 +323,8 @@
   deterministic default for dev/tests/the local demo -- NEVER used for
   a live deployment's actual book (see `empty-db`/`from-snapshot`)."
   []
-  (->MemStore (atom (assoc (empty-state) :receivables (:receivables (demo-data)) :funders demo-funders))))
+  (->MemStore (atom (assoc (empty-state) :receivables (:receivables (demo-data)) :funders demo-funders
+                           :settlement-account demo-settlement-account))))
 
 (defn empty-db
   "A MemStore with the genuinely empty book -- what a fresh production
@@ -290,7 +374,8 @@
    :advance/seq                {:db/unique :db.unique/identity}
    :settlement/seq              {:db/unique :db.unique/identity}
    :attestation/seq              {:db/unique :db.unique/identity}
-   :sequence/key                  {:db/unique :db.unique/identity}})
+   :sequence/key                  {:db/unique :db.unique/identity}
+   :settlement-account/singleton   {:db/unique :db.unique/identity}})
 
 (defn- enc [v] (pr-str v))
 (defn- dec* [s] (when s (edn/read-string s)))
@@ -338,6 +423,8 @@
   (cond-> {:funder/id id}
     name             (assoc :funder/name name)
     funding-capacity (assoc :funder/funding-capacity funding-capacity)))
+
+(def ^:private settlement-account-singleton-key "settlement-account")
 
 (defrecord DatomicStore [conn]
   Store
@@ -452,19 +539,30 @@
     (when (seq receivables) (d/transact! conn (mapv receivable->tx (vals receivables)))) s)
   (register-funder! [_ funder]
     (d/transact! conn [(funder->tx funder)])
-    funder))
+    funder)
+  (settlement-account [_]
+    (dec* (d/q '[:find ?p . :in $ ?k
+                :where [?e :settlement-account/singleton ?k] [?e :settlement-account/payload ?p]]
+              (d/db conn) settlement-account-singleton-key)))
+  (register-settlement-account! [_ account]
+    (d/transact! conn [{:settlement-account/singleton settlement-account-singleton-key
+                        :settlement-account/payload (enc account)}])
+    account))
 
 (defn datomic-store
   "A DatomicStore (langchain.db backend) seeded from `data`
-  ({:receivables .. :funders ..}); empty when omitted."
+  ({:receivables .. :funders .. :settlement-account ..}); empty when
+  omitted."
   ([] (datomic-store {}))
-  ([{:keys [receivables funders]}]
+  ([{:keys [receivables funders settlement-account]}]
    (let [s (->DatomicStore (d/create-conn schema))]
      (when (seq funders) (d/transact! (:conn s) (mapv funder->tx (vals funders))))
+     (when settlement-account (register-settlement-account! s settlement-account))
      (with-receivables s receivables))))
 
 (defn datomic-seed-db
-  "A DatomicStore seeded with the demo receivable + funder set -- the
-  Datomic-backed analog of `seed-db`, used to prove protocol parity."
+  "A DatomicStore seeded with the demo receivable + funder + settlement-
+  account set -- the Datomic-backed analog of `seed-db`, used to prove
+  protocol parity."
   []
-  (datomic-store (assoc (demo-data) :funders demo-funders)))
+  (datomic-store (assoc (demo-data) :funders demo-funders :settlement-account demo-settlement-account)))

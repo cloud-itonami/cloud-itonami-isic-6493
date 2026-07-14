@@ -31,6 +31,19 @@ transparency machinery is fully live and real; the money-movement
 backend is intentionally not attached and is out of scope for this
 deployment.
 
+**Sharper, as of the `kotoba-lang/swift`/`kotoba-lang/banking`/
+`kotoba-lang/ekyc` integration (see [ADR-0003](../docs/adr/0003-real-banking-swift-ekyc-integration.md)):**
+the ARTIFACTS this deployment produces are themselves real and spec-
+conformant -- a genuine SWIFT MT103 wire string, a genuine Berlin Group
+XS2A payment-initiation JSON payload, a genuine 犯収法施行規則-conformant
+eKYC verification-method validation. Every one of them is constructed,
+stored in the audit ledger, and returned in the API response -- and
+**NEVER transmitted anywhere**: no real SWIFTNet connection, no real
+bank API call, no real eKYC vendor call. This actor produces exactly
+what a licensed operator's real banking/eKYC integration would need to
+receive and forward; the forwarding step itself remains explicitly out
+of scope and unattached.
+
 ## Architecture
 
 ```
@@ -77,6 +90,39 @@ un-overridably** -- this does not weaken the governor, it only
 collapses the SOFT confidence/actuation-approval gate into the same
 HTTP call. See `routes.cljc`'s `run-op!` docstring for the full
 reasoning.
+
+## Real capability-library integration (`kotoba-lang/swift` / `kotoba-lang/banking` / `kotoba-lang/ekyc`)
+
+The FIRST `cloud-itonami-isic-*` actor in this fleet to depend on these
+as LIVE CODE rather than cite them in a docstring (every prior
+sibling's `:banking` capability tag was "cited but not directly
+required"). See [ADR-0003](../docs/adr/0003-real-banking-swift-ekyc-integration.md)
+for the full design record.
+
+- **`POST /receivables/<id>/verify`** now also constructs and validates
+  a real `kotoba.ekyc/verification` record for the CLIENT and the
+  ACCOUNT DEBTOR against the real 犯収法施行規則 Art.6(1) non-face-to-
+  face identity-verification method catalog. An unrecognized method or
+  incomplete evidence combination is a HARD, un-overridable violation
+  (`:ekyc-verification-invalid`) carrying the REAL, structured
+  `kotoba.ekyc/validate` result (`disposition`/`reasons`), not an
+  abstract boolean. The committed verification's `:ekyc` field carries
+  the same real record.
+- **`POST /receivables/<id>/advance`** and **`POST /receivables/<id>/settle`**
+  now construct a REAL settlement-instruction artifact on every clean
+  commit -- a SWIFT MT103 wire string (`kotoba.swift`) or a Berlin
+  Group XS2A payment-initiation JSON payload (`kotoba.banking.api`),
+  auto-selected by currency (JPY -> MT103; everything else -> XS2A by
+  default, overridable per receivable via `:settlement-rail`). The
+  response's `:settlement-instruction` field carries it -- an
+  authorized caller SEES the exact, spec-correct payment instruction
+  this actuation produced.
+- **`GET`/`POST /settlement-account`** -- this factor's OWN settlement
+  account ({:iban :bic :account-holder-name}), the ordering/debtor side
+  of every settlement-instruction artifact. ADMIN, not governed (same
+  posture as `POST /funders`) -- must be configured before any advance/
+  settle can produce a real artifact (a missing account gracefully
+  omits the artifact rather than blocking the actuation DECISION).
 
 ## Auth shape
 
@@ -163,6 +209,19 @@ the live URL, catching and fixing two real bugs in the process (an
 empty-POST-body crash, and a JSON string vs. Clojure keyword mismatch
 on `:debtor-risk-tier` that silently broke the fee-schedule exact-match
 check -- see `routes.cljc`'s `coerce-receivable-patch` and
-`worker.cljs`'s `parse-body!` docstrings). The test data was deleted
-from KV afterward (`wrangler kv key delete "book" --remote`), so this
-deployment starts from a genuinely empty book.
+`worker.cljs`'s `parse-body!` docstrings). A FOURTH deploy (same day)
+added the `kotoba-lang/swift`/`kotoba-lang/banking`/`kotoba-lang/ekyc`
+integration and was re-smoke-tested end-to-end against the live URL: a
+JPY receivable's `POST /verify` response was confirmed to carry a real
+`kotoba.ekyc/validate` result (`"disposition":"pass"`, real method/
+assurance-level/citation fields), and its `POST /advance`/`POST
+/settle` responses were confirmed to carry a genuine, well-formed SWIFT
+MT103 wire string (`{1:F01FCTRDEFFXXXX...}{2:I103GRLFJPJTXXXXN}{4:...
+:32A:260714JPY1700000,...-}`) with the correct value-date/currency/
+amount. A second live case confirmed an unrecognized eKYC method
+produces a real, specific 409 (`{"rule":"ekyc-verification-invalid",
+"disposition":"fail","reasons":["unrecognized-method"]}`), not a
+generic error. The test data was deleted from KV afterward
+(`wrangler kv key delete "book" --remote`) after every one of these
+smoke-test rounds, so this deployment starts from a genuinely empty
+book.
