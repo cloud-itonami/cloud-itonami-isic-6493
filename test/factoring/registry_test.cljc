@@ -137,3 +137,57 @@
     (is (= 2 (count hist2)))
     (is (= "JPN-ADV-000000" (get-in hist2 [0 "record_id"])))
     (is (= "JPN-ADV-000001" (get-in hist2 [1 "record_id"])))))
+
+;; ----------------------------- real capability-library integration -----------------------------
+
+(deftest client-and-debtor-ekyc-verification-builds-a-real-kotoba-ekyc-record
+  (let [r {:id "rcv-x" :client-name "Acme Corp" :client-address "1 Main St" :client-subject-type :corporate
+          :client-ekyc-method :corp-ro
+          :client-ekyc-evidence [{:kind :name-and-registered-office-declaration :ref "d1"}
+                                 {:kind :registry-information-lookup :ref "r1" :fields-confirmed [:name :registered-office]}]
+          :debtor-name "Beta Inc" :debtor-address "2 Side St" :debtor-subject-type :corporate
+          :debtor-ekyc-method :corp-ho
+          :debtor-ekyc-evidence [{:kind :registrar-issued-certificate :ref "c1"}
+                                 {:kind :electronic-signature :ref "s1"}]}
+        client-v (r/client-ekyc-verification r)
+        debtor-v (r/debtor-ekyc-verification r)]
+    (is (= "rcv-x-client" (:ekyc.verification/id client-v)))
+    (is (= :corp-ro (:ekyc.verification/method client-v)))
+    (is (= "Acme Corp" (:ekyc.subject/name (:ekyc.verification/subject-claim client-v))))
+    (is (= "rcv-x-debtor" (:ekyc.verification/id debtor-v)))
+    (is (= :corp-ho (:ekyc.verification/method debtor-v)))))
+
+(deftest choose-settlement-rail-forces-mt103-for-non-2-decimal-currencies
+  (testing "JPY (0 decimals) always routes to MT103, regardless of the receivable's own preference"
+    (is (= :swift-mt103 (r/choose-settlement-rail {:currency "JPY" :settlement-rail :xs2a}))))
+  (testing "a 2-decimal currency honors the receivable's own settlement-rail, defaulting to xs2a"
+    (is (= :xs2a (r/choose-settlement-rail {:currency "EUR"})))
+    (is (= :swift-mt103 (r/choose-settlement-rail {:currency "EUR" :settlement-rail :swift-mt103})))))
+
+(deftest build-settlement-instruction-is-nil-with-no-factor-account
+  (is (nil? (r/build-settlement-instruction {:currency "EUR"} nil :advance 1000 "REF-1"))))
+
+(deftest build-settlement-instruction-produces-a-real-mt103-wire-for-jpy
+  (let [factor {:iban "DE89370400440532013000" :bic "FCTRDEFFXXX" :account-holder-name "Demo Factor"}
+        r {:id "rcv-x" :currency "JPY" :client-bic "GRLFJPJTXXX" :client-name "GreenLeaf"}
+        si (r/build-settlement-instruction r factor :advance 1700000.0 "JPN-ADV-000000")]
+    (is (= :swift-mt103 (:settlement/rail si)))
+    (is (nil? (:settlement/error si)))
+    (is (re-find #"^\{1:F01FCTRDEFFXXXX" (get-in si [:settlement/payload :swift/wire])))
+    (is (re-find #":32A:\d{6}JPY1700000,\r\n" (get-in si [:settlement/payload :swift/wire])))))
+
+(deftest build-settlement-instruction-produces-a-real-xs2a-payload-for-eur
+  (let [factor {:iban "DE89370400440532013000" :bic "FCTRDEFFXXX" :account-holder-name "Demo Factor"}
+        r {:id "rcv-x" :currency "EUR" :client-iban "DE75512108001245126199" :client-name "Rhein Fabrik GmbH"}
+        si (r/build-settlement-instruction r factor :settle 25500.0 "DEU-SETL-000000")]
+    (is (= :xs2a (:settlement/rail si)))
+    (is (= "255.00" (get-in si [:settlement/payload "instructedAmount" "amount"])))
+    (is (= "DE75512108001245126199" (get-in si [:settlement/payload "creditorAccount" "iban"])))))
+
+(deftest build-settlement-instruction-gracefully-degrades-on-incomplete-banking-details
+  (testing "a missing :client-iban on an XS2A-routed receivable does NOT crash -- it surfaces a clear :settlement/error"
+    (let [factor {:iban "DE89370400440532013000" :bic "FCTRDEFFXXX" :account-holder-name "Demo Factor"}
+          r {:id "rcv-x" :currency "EUR" :client-name "No IBAN Ltd"}
+          si (r/build-settlement-instruction r factor :advance 1000.0 "REF-1")]
+      (is (= :xs2a (:settlement/rail si)))
+      (is (seq (:settlement/error si))))))

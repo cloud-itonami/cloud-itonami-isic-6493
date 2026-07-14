@@ -73,7 +73,10 @@
   would keep, not the acts of advancing cash or releasing a reserve
   themselves (those are `factoring.operation`'s `:advance/fund` and
   `:reserve/settle`, always human-gated -- see README `Actuation`)."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [kotoba.banking.api :as banking-api]
+            [kotoba.ekyc :as ekyc]
+            [kotoba.swift :as swift]))
 
 (defn- unsigned-certificate
   "Every certificate this actor produces is UNSIGNED -- signature is
@@ -380,3 +383,182 @@
   place)."
   [history result]
   (conj (vec history) (get result "record")))
+
+;; ============================================================================
+;; Real capability-library integration -- kotoba-lang/ekyc, kotoba-lang/
+;; swift, kotoba-lang/banking. The FIRST cloud-itonami-isic-* actor in this
+;; fleet to depend on these as LIVE CODE rather than cite them in a
+;; docstring (every prior sibling's :banking capability tag was "cited but
+;; not directly required" -- ADR-2607080200 et al.). See docs/adr/0003-
+;; real-banking-swift-ekyc-integration.md for the full design record.
+;;
+;; HONESTY BOUNDARY (verbatim, restated wherever this integration is
+;; documented): every artifact this section constructs -- an eKYC
+;; verification-method validation, an XS2A payment-initiation JSON payload,
+;; a SWIFT MT103 wire string -- is REAL and spec-conformant. NONE of it is
+;; ever transmitted anywhere. No real SWIFTNet connection, no real bank API
+;; call, no real eKYC vendor call. This actor produces exactly what a
+;; licensed operator's real banking/eKYC integration would need to receive
+;; and forward; the forwarding step itself remains out of scope and
+;; unattached.
+;; ============================================================================
+
+;; ----------------------------- eKYC (kotoba.ekyc) -----------------------------
+
+(defn- ->ekyc-evidence
+  "One caller-submitted evidence map ({:kind :ref :fields-confirmed
+  :captured-live?}) -> a real `kotoba.ekyc/evidence` record."
+  [{:keys [kind ref fields-confirmed captured-live? source]}]
+  (ekyc/evidence kind ref :fields-confirmed fields-confirmed
+                 :captured-live? captured-live? :source source))
+
+(defn client-ekyc-verification
+  "The receivable's CLIENT (the seller of the receivable -- this factor's
+  actual customer/counterparty) as a real `kotoba.ekyc/verification`
+  record, built from the receivable's own `:client-*` fields. This is the
+  party 犯収法's 特定事業者-customer identity-verification duty is most
+  directly about."
+  [{:keys [id client-name client-address client-dob client-subject-type
+           client-ekyc-method client-ekyc-evidence]}]
+  (ekyc/verification (str id "-client") client-ekyc-method
+                      (ekyc/subject-claim client-name client-address client-dob
+                                          :subject-type (or client-subject-type :corporate))
+                      (mapv ->ekyc-evidence client-ekyc-evidence)))
+
+(defn debtor-ekyc-verification
+  "The receivable's ACCOUNT DEBTOR as a real `kotoba.ekyc/verification`
+  record. This factor's own enhanced-due-diligence posture extends the
+  same non-face-to-face verification-method discipline to the account
+  debtor, not only the client -- a deliberate scope choice broader than a
+  narrow reading of 犯収法's customer-only duty, documented honestly in
+  docs/adr/0003 rather than silently assumed."
+  [{:keys [id debtor-name debtor-address debtor-dob debtor-subject-type
+           debtor-ekyc-method debtor-ekyc-evidence]}]
+  (ekyc/verification (str id "-debtor") debtor-ekyc-method
+                      (ekyc/subject-claim debtor-name debtor-address debtor-dob
+                                          :subject-type (or debtor-subject-type :corporate))
+                      (mapv ->ekyc-evidence debtor-ekyc-evidence)))
+
+;; ----------------------------- settlement instruction (kotoba.swift / kotoba.banking.api) -----------------------------
+
+(def currency-decimals
+  "ISO 4217 minor-unit count for the currencies this catalog's seeded
+  jurisdictions actually use. NOT a full ISO 4217 minor-unit table (this
+  fleet does not have one yet -- the same documented limitation `kotoba.
+  swift`/`kotoba.banking.api` themselves carry); `decimals-for` falls
+  back to 2 (the common case) for anything not listed here."
+  {"JPY" 0 "USD" 2 "EUR" 2 "GBP" 2})
+
+(defn decimals-for [currency] (get currency-decimals currency 2))
+
+(defn choose-settlement-rail
+  "Auto-selects `:swift-mt103` whenever the receivable's currency's minor-
+  unit convention is not 2 -- `kotoba.banking.api/payment-initiation-
+  request`'s `amountValue` conversion ASSUMES 2 minor units always (a
+  limitation that library's own ns docstring documents: 'ASSUMES 2 minor
+  units... 0-minor-unit currencies (JPY)... are NOT handled'). Silently
+  routing a JPY-denominated advance through XS2A would misconvert the
+  amount by a factor of 100 -- this override is a structural correctness
+  guard, not a preference. Otherwise honors the receivable's own
+  `:settlement-rail` (default `:xs2a`).
+
+  This also happens to line up with jurisdictional reality, not by
+  design but as a genuinely useful coincidence worth citing: Japan does
+  not participate in the IBAN scheme at all (so a JPY/JPN receivable
+  naturally has no IBAN to route through XS2A's `accountReference`
+  anyway, only a BIC -- MT103's option-A/K party fields need exactly
+  that), while the EU/GBR jurisdictions this catalog seeds are IBAN-
+  native and PSD2/XS2A-native. See docs/adr/0003's Decision section for
+  the full settlement-rail-choice rationale."
+  [receivable]
+  (if (not= 2 (decimals-for (:currency receivable)))
+    :swift-mt103
+    (or (:settlement-rail receivable) :xs2a)))
+
+(defn- round-to-long
+  "Portable round-to-integer (no BigDecimal, `.cljc`-safe): `compute-
+  advance-amount`/`compute-settlement-amount` return doubles (face-amount
+  * a rational rate); a wire/API amount field needs an exact integer
+  minor-unit count."
+  [x]
+  #?(:clj (long (Math/round (double x)))
+     :cljs (js/Math.round x)))
+
+#?(:clj
+   (defn- today-yymmdd []
+     (.format (java.time.LocalDate/now) (java.time.format.DateTimeFormatter/ofPattern "yyMMdd")))
+   :cljs
+   (defn- today-yymmdd []
+     (let [d (js/Date.)
+           pad2 (fn [n] (if (< n 10) (str "0" n) (str n)))]
+       (str (pad2 (mod (.getFullYear d) 100)) (pad2 (inc (.getMonth d))) (pad2 (.getDate d))))))
+
+(defn build-settlement-instruction
+  "Constructs the REAL settlement-instruction artifact for one leg
+  (`:advance` | `:settle`) of a receivable's factoring lifecycle -- an
+  XS2A payment-initiation-request JSON payload (`kotoba.banking.api`) or
+  a SWIFT MT103 wire string (`kotoba.swift`), chosen by `choose-
+  settlement-rail`. `factor-account` is this deployment's own settlement
+  account ({:iban :bic :account-holder-name}, see `factoring.store/
+  register-settlement-account!`) -- the ordering/debtor side of the
+  payment (money moves FROM the factor's own account TO the client's, on
+  BOTH legs: the initial advance and the later reserve release). Returns
+  nil (never a fabricated placeholder) when `factor-account` is nil -- an
+  operator has not yet configured a settlement account, the ONLY
+  precondition on WHETHER this runs at all. When it runs but the
+  receivable's own banking details are incomplete/invalid for the
+  chosen rail (e.g. no `:client-iban` for an XS2A leg), the underlying
+  constructor's `ex-info` is caught and surfaced as `{:settlement/rail
+  rail :settlement/leg leg :settlement/error [...]}` rather than
+  crashing the commit -- a receivable's settlement-detail completeness
+  is a data-completeness concern, not a governance/compliance one; the
+  ACTUATION decision itself (commit/hold, per `factoring.governor`'s
+  HARD checks) is unaffected either way.
+
+  See this ns's own 全東信-motivated docstring section header for the
+  honesty boundary: this artifact is real and spec-conformant, and is
+  NEVER transmitted anywhere from this codebase."
+  [receivable factor-account leg amount-minor reference]
+  (when factor-account
+    (let [rail (choose-settlement-rail receivable)
+          currency (:currency receivable)
+          decimals (decimals-for currency)
+          amount (round-to-long amount-minor)]
+      (try
+       (case rail
+        :xs2a
+        {:settlement/rail    :xs2a
+         :settlement/leg     leg
+         :settlement/payload
+         (banking-api/payment-initiation-request
+          {:payment-product "sepa-credit-transfers"
+           :debtor-account {:account/id (:iban factor-account) :account/currency currency}
+           :creditor-account {:account/id (:client-iban receivable) :account/currency currency}
+           :creditor-name (:client-name receivable)
+           :amount amount :currency currency
+           :end-to-end-identification reference
+           :remittance-information-unstructured (str "factoring " (name leg) " " (:id receivable))})}
+
+        :swift-mt103
+        (let [m (swift/mt103
+                 {:sender-bic (:bic factor-account)
+                  :receiver-bic (:client-bic receivable)
+                  :transaction-reference reference
+                  :bank-operation-code "CRED"
+                  :value-date (today-yymmdd)
+                  :currency currency
+                  :amount-minor amount
+                  :decimals decimals
+                  :ordering-customer-name-address (:account-holder-name factor-account)
+                  :beneficiary-name-address (:client-name receivable)
+                  :details-of-charges "SHA"})]
+          (when (nil? m)
+            (throw (ex-info "mt103 construction rejected the input (missing/invalid sender-bic, receiver-bic, or other required field)"
+                            {:settlement/rail :swift-mt103})))
+          {:settlement/rail    :swift-mt103
+           :settlement/leg     leg
+           :settlement/payload {:swift/message m :swift/wire (swift/mt->wire m)}}))
+       (catch #?(:clj Exception :cljs :default) e
+         {:settlement/rail  rail
+          :settlement/leg   leg
+          :settlement/error (or (:api/errors (ex-data e)) [(str e)])})))))

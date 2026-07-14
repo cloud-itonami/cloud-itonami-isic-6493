@@ -35,6 +35,7 @@
             [factoring.facts :as facts]
             [factoring.registry :as registry]
             [factoring.store :as store]
+            [kotoba.ekyc :as ekyc]
             [langchain.model :as model]))
 
 (defn- normalize-intake
@@ -50,29 +51,49 @@
    :stake      nil
    :confidence 0.97})
 
+(defn- ekyc-summary
+  "The real `kotoba.ekyc/validate` results for both parties of a
+  receivable, in the shape the verify proposal surfaces to a caller (see
+  README/worker docs: 'a real eKYC record', not an abstract boolean).
+  `factoring.governor/ekyc-verification-invalid-violations` independently
+  re-derives the SAME thing from store ground truth -- this advisor's
+  copy is for visibility only, the governor never trusts it."
+  [r]
+  {:client (ekyc/validate (registry/client-ekyc-verification r))
+   :debtor (ekyc/validate (registry/debtor-ekyc-verification r))})
+
 (defn- propose-verification
   "Per-jurisdiction invoice-authenticity/duplicate-pledge/KYC checklist
-  draft, PLUS the client/account-debtor sanctions-screening ground
-  truth (already on the receivable -- this advisor only surfaces it,
-  it does not run the actual screen). `:no-spec?` injects the failure
-  mode we must defend against: proposing a checklist for a jurisdiction
-  with NO official spec-basis in `factoring.facts` -- the Factoring
-  Governor must reject this (never invent a jurisdiction's law)."
+  draft, the client/account-debtor sanctions-screening ground truth
+  (already on the receivable -- this advisor only surfaces it, it does
+  not run the actual screen), AND a real `kotoba.ekyc` verification-
+  method validation for both parties (see `ekyc-summary` -- a genuine,
+  spec-conformant eKYC record, not a placeholder). `:no-spec?` injects
+  the failure mode we must defend against: proposing a checklist for a
+  jurisdiction with NO official spec-basis in `factoring.facts` -- the
+  Factoring Governor must reject this (never invent a jurisdiction's
+  law)."
   [st {:keys [subject no-spec?]}]
   (let [r (store/receivable st subject)
         iso3 (if no-spec? "ATL" (:jurisdiction r))
-        sb (facts/spec-basis iso3)]
+        sb (facts/spec-basis iso3)
+        ekyc-result (ekyc-summary r)
+        ekyc-clean? (every? #(= :pass (:ekyc.result/disposition %)) (vals ekyc-result))]
     (if (nil? sb)
       {:summary    (str iso3 " の公式spec-basisが見つかりません")
        :rationale  "factoring.facts に未登録の法域。要件を推測で作らない。"
        :cites      []
        :effect     :verification/set
-       :value      {:jurisdiction iso3 :checklist [] :spec-basis nil}
+       :value      {:jurisdiction iso3 :checklist [] :spec-basis nil :ekyc ekyc-result}
        :stake      nil
        :confidence 0.9}
       {:summary    (str iso3 " (" (:owner-authority sb) ") 向け必要書類 "
-                        (count (:required-evidence sb)) " 件を提案")
-       :rationale  (str "公式ソース: " (:provenance sb) " / 法的根拠: " (:legal-basis sb))
+                        (count (:required-evidence sb)) " 件を提案 / eKYC: "
+                        (name (:ekyc.result/disposition (:client ekyc-result))) "/"
+                        (name (:ekyc.result/disposition (:debtor ekyc-result))))
+       :rationale  (str "公式ソース: " (:provenance sb) " / 法的根拠: " (:legal-basis sb)
+                        " / eKYC method(client)=" (:ekyc.verification/method (registry/client-ekyc-verification r))
+                        " method(debtor)=" (:ekyc.verification/method (registry/debtor-ekyc-verification r)))
        :cites      [(:legal-basis sb) (:provenance sb)]
        :effect     :verification/set
        :value      {:jurisdiction iso3
@@ -80,9 +101,10 @@
                     :spec-basis (:provenance sb)
                     :legal-basis (:legal-basis sb)
                     :client-sanctions-hit? (:client-sanctions-hit? r)
-                    :debtor-sanctions-hit? (:debtor-sanctions-hit? r)}
+                    :debtor-sanctions-hit? (:debtor-sanctions-hit? r)
+                    :ekyc ekyc-result}
        :stake      nil
-       :confidence (if (or (:client-sanctions-hit? r) (:debtor-sanctions-hit? r)) 0.3 0.9)})))
+       :confidence (if (and ekyc-clean? (not (or (:client-sanctions-hit? r) (:debtor-sanctions-hit? r)))) 0.9 0.3)})))
 
 (defn- propose-underwriting
   "Account-debtor concentration underwriting draft -- computes the

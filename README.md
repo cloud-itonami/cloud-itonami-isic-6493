@@ -213,6 +213,20 @@ this deployment makes the governed decision+audit+transparency software
 live and real; it attaches no real bank/payment rail, real funder
 capital or real KYC/AML provider, and fabricates none of those.
 
+**Real capability-library integration** (`kotoba-lang/swift` /
+`kotoba-lang/banking` / `kotoba-lang/ekyc`, the first `cloud-itonami-
+isic-*` actor in this fleet to depend on these as live code, not a
+docstring citation): `POST /verify` now constructs and validates a real
+`kotoba.ekyc` identity-verification record (JPN 犯収法施行規則 Art.6(1)),
+and `POST /advance`/`POST /settle` now construct a real settlement-
+instruction artifact on every commit -- a genuine SWIFT MT103 wire
+string or a genuine Berlin Group XS2A payment-initiation JSON payload,
+returned in the response. See
+[`docs/adr/0003-real-banking-swift-ekyc-integration.md`](docs/adr/0003-real-banking-swift-ekyc-integration.md)
+for the design record and the sharper honesty-boundary restatement:
+these artifacts are real and spec-conformant, and are never transmitted
+anywhere.
+
 ## Robotics premise
 
 All cloud-itonami verticals are designed on the premise that a **robot**
