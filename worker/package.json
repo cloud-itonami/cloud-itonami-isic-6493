@@ -1,0 +1,14 @@
+{
+  "name": "cloud-itonami-isic-6493-worker",
+  "private": true,
+  "description": "Cloudflare Worker for cloud-itonami-isic-6493 (Factoring activities, ISIC Rev.5 6493) -- factoring.murakumo.cloud",
+  "scripts": {
+    "build": "shadow-cljs release worker",
+    "dev": "shadow-cljs watch worker",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "shadow-cljs": "^3.4.11",
+    "wrangler": "^4.106.0"
+  }
+}

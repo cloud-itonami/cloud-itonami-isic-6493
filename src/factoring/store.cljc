@@ -60,7 +60,8 @@
   (book-outstanding-exposure [s exclude-id] "ground-truth aggregate exposure for the whole book")
   (commit-record! [s record] "apply a committed op's record to the SSoT")
   (append-ledger! [s fact]   "append one immutable decision fact")
-  (with-receivables [s receivables] "replace/seed the receivable directory (map id->receivable)"))
+  (with-receivables [s receivables] "replace/seed the receivable directory (map id->receivable)")
+  (register-funder! [s funder] "administrative: add/update a funder record ({:id :name :funding-capacity}) -- ground truth entered by the operator, the SAME kind of static reference data `demo-funders`/`:debtor-credit-limit` already are. Deliberately NOT run through the LLM-advisor/governor pipeline: there is no proposal-fabrication or actuation risk in recording who a funding partner is and their own committed capacity, unlike a receivable's advance/settlement -- see `worker/routes.cljc`'s own docstring for the full reasoning behind this deployment's admin-vs-governed-op split"))
 
 ;; ----------------------------- demo data -----------------------------
 
@@ -221,16 +222,55 @@
       nil)
     s)
   (append-ledger! [_ fact] (swap! a update :ledger conj fact) fact)
-  (with-receivables [s receivables] (when (seq receivables) (swap! a assoc :receivables receivables)) s))
+  (with-receivables [s receivables] (when (seq receivables) (swap! a assoc :receivables receivables)) s)
+  (register-funder! [_ {:keys [id] :as funder}] (swap! a assoc-in [:funders id] funder) funder))
+
+(defn empty-state
+  "The genuinely EMPTY book shape (no demo/fixture data) -- what a real
+  production deployment starts from before any receivable or funder has
+  ever been recorded. Distinct from `demo-data`/`demo-funders`, which
+  are fixture data for tests/the local demo only and must never leak
+  into a live deployment."
+  []
+  {:receivables {} :funders {} :verifications {} :underwritings {}
+   :ledger [] :sequences {} :advances [] :settlements [] :attestations []})
 
 (defn seed-db
   "A MemStore seeded with the demo receivable + funder set. The
-  deterministic default."
+  deterministic default for dev/tests/the local demo -- NEVER used for
+  a live deployment's actual book (see `empty-db`/`from-snapshot`)."
   []
-  (->MemStore (atom (assoc (demo-data)
-                           :funders demo-funders
-                           :verifications {} :underwritings {} :ledger [] :sequences {}
-                           :advances [] :settlements [] :attestations []))))
+  (->MemStore (atom (assoc (empty-state) :receivables (:receivables (demo-data)) :funders demo-funders))))
+
+(defn empty-db
+  "A MemStore with the genuinely empty book -- what a fresh production
+  deployment (no KV snapshot yet) starts from. No demo/fixture data."
+  []
+  (->MemStore (atom (empty-state))))
+
+(defn snapshot
+  "The MemStore's raw EDN state -- for persisting to an external durable
+  store (e.g. `worker/kv_store.cljs`'s KV-backed persistence layer)
+  between requests. Pairs with `from-snapshot`. Plain EDN (not JSON): the
+  book's `:status`/`:debtor-risk-tier`/etc. values are keywords, and a
+  round-trip through JSON would silently turn them into strings, which
+  every keyword-comparison HARD check in `factoring.governor` depends
+  on -- `pr-str`/`edn/read-string` (via `worker/kv_store.cljs`'s
+  `cljs.reader`) round-trips exactly."
+  [store]
+  @(:a store))
+
+(defn from-snapshot
+  "A MemStore hydrated from a previously-`snapshot`ted EDN state, or a
+  genuinely empty book (`empty-state`) if `state` is nil -- the
+  deserialization half of `snapshot`. The store returned is a REAL
+  `factoring.store/Store` (a `MemStore`) -- every `factoring.governor`/
+  `factoring.operation` call against it runs the exact same, already-
+  tested synchronous business logic as `test/factoring/*`, whether the
+  process is the JVM test suite or a Cloudflare Worker request that
+  just hydrated this snapshot from KV."
+  [state]
+  (->MemStore (atom (or state (empty-state)))))
 
 ;; ----------------------------- DatomicStore (langchain.db) -----------------------------
 
@@ -409,7 +449,10 @@
     (d/transact! conn [{:ledger/seq (count (ledger s)) :ledger/fact (enc fact)}])
     fact)
   (with-receivables [s receivables]
-    (when (seq receivables) (d/transact! conn (mapv receivable->tx (vals receivables)))) s))
+    (when (seq receivables) (d/transact! conn (mapv receivable->tx (vals receivables)))) s)
+  (register-funder! [_ funder]
+    (d/transact! conn [(funder->tx funder)])
+    funder))
 
 (defn datomic-store
   "A DatomicStore (langchain.db backend) seeded from `data`
