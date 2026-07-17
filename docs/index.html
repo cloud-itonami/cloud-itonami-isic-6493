@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factoring activities | cloud-itonami-isic-6493</title>
+  <meta name="description" content="Factoring activities — governed open occupation blueprint (ISIC 6493).">
+  <style>
+    :root { --bg:#f5f7fa; --card:#fff; --fg:#1b1f24; --muted:#57606a; --accent:#1e3a8a; --line:#d0d7de; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0d1117; --card:#161b22; --fg:#e6edf3; --muted:#8d96a0; --accent:#58a6ff; --line:#30363d; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, var(--bg), #c3cfe2);
+           min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; color: var(--fg); }
+    .container { max-width: 800px; width: 100%; background: var(--card); border-radius: 12px;
+                 box-shadow: 0 10px 40px rgba(0,0,0,.1); padding: 48px 40px; border: 1px solid var(--line); }
+    h1 { font-size: 1.85rem; color: var(--accent); margin-bottom: 8px; }
+    .badge { display: inline-block; background: #e0e7ff; color: var(--accent); padding: 3px 10px;
+             border-radius: 4px; font-size: .85rem; font-weight: 600; margin-bottom: 20px; }
+    @media (prefers-color-scheme: dark) { .badge { background: #1f2a44; } }
+    .pitch { border-left: 4px solid var(--accent); padding-left: 16px; margin: 20px 0 28px; color: var(--muted); line-height: 1.7; }
+    .pitch p { margin-bottom: 10px; }
+    .meta { font-size: .9rem; color: var(--muted); margin-bottom: 24px; }
+    .meta code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
+    .cta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+    @media (max-width: 560px) { .cta { grid-template-columns: 1fr; } }
+    .cta a { display: block; text-align: center; text-decoration: none; padding: 14px 18px;
+             border-radius: 8px; font-weight: 600; }
+    .cta .primary { background: var(--accent); color: #fff; }
+    .cta .secondary { border: 1.5px solid var(--accent); color: var(--accent); }
+    ul.links { list-style: none; font-size: .95rem; }
+    ul.links li { margin: 8px 0; }
+    a { color: var(--accent); }
+    footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line);
+             font-size: .85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Factoring activities</h1>
+    <div class="badge">ISIC 6493 · maturity implemented</div>
+    <div class="pitch">
+      <p>Open Business Blueprint for ISIC Rev.5 6493: Factoring activities. This repository publishes a factoring actor -- receivable intake, invoice-authenticity/duplicate-pledge/KYC verification, account-debtor underwriting, a governed cash advance, collection recording, and a governed reserve settlement -- as an OSS business that any qualified, licensed factor can fork, deploy, run, improve and sell.</p>
+      <p>UN ISIC Rev.5's own explanatory note for division 649, class 6493, reads in full: *&quot;This class covers the activity of purchasing accounts receivable (i.e., invoices) from third parties at a discount. This class excludes: debt financing undertaken with account receivables as collateral, see 6495.&quot;* (ISIC5_Exp_Notes_11Mar2024.pdf, UN Statistics Division Task Team on ISIC). 6493 is a genuine, distinct, standalone Rev.5 class -- NOT a subset of 6499 (&quot;Other financial service activities n.e.c.&quot;) -- sitting alongside its division-649 siblings 6491 (Financial leasing activities), 6492 (International trade financing activities), 6494 (Securitisation activities) and 6495 (Other credit granting activities) in the official ISIC Rev.5 structure. See [docs/adr/0001-architecture.md](docs/adr/0001-architecture.md) §&quot;Known issue: 6492's title/content mismatch&quot; for a related fleet finding this repository does NOT fix.</p>
+      <p>Built on this workspace's [langgraph-clj](https://github.com/com-junkawasaki/langgraph-clj) StateGraph runtime (portable .cljc, supervised superstep loop, interrupts, Datomic/in-mem checkpoints) -- the same actor pattern as every prior actor in this fleet, most directly [cloud-itonami-isic-6492](https://github.com/cloud-itonami/cloud-itonami-isic-6492) (Credit-LLM ⊣ Credit Governor, the closest operational template) and [cloud-itonami-isic-6499](https://github.com/cloud-itonami/cloud-itonami-isic-6499) (DD-LLM ⊣ InvestmentCommitteeGovernor, the template for this actor's two-actuation shape). Here it is Factoring-LLM ⊣ Factoring Governor.</p>
+    </div>
+    <p class="meta">Domain <code>finance/factoring</code> · Governor <code>factoring-governor</code> · License <code>AGPL-3.0-or-later</code></p>
+    <div class="cta">
+      <a class="primary" href="https://itonami.cloud/isco-1212/">Fork + self-host claim</a>
+      <a class="secondary" href="https://itonami.cloud/docs/go-live.md">Paid go-live path</a>
+    </div>
+    <ul class="links">
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6493">GitHub repository</a></li>
+      <li><a href="./operator-quickstart.md">Operator quickstart</a></li>
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6493/blob/main/blueprint.edn">blueprint.edn</a></li>
+      <li><a href="https://github.com/cloud-itonami/cloud-itonami-isic-6493/blob/main/README.md">README</a></li>
+    </ul>
+    <footer>
+      <p>Open occupation blueprint — no invented usage or revenue metrics. Product face generated for impl-product maturity (Lane C).</p>
+    </footer>
+  </main>
+</body>
+</html>
