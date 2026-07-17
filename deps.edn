@@ -6,7 +6,7 @@
  ;; inside the monorepo checkout — a standalone fork should override them
  ;; with git coordinates.
  :deps {io.github.com-junkawasaki/langgraph-clj
-        {:local/root "../../com-junkawasaki/langgraph-clj"}
+        {:local/root "../../kotoba-lang/langgraph"}
         ;; Real capability libraries this actor depends on as LIVE CODE
         ;; (not just a docstring citation) -- the first cloud-itonami-isic-*
         ;; actor in this fleet to do so, per explicit owner request. See
@@ -18,7 +18,7 @@
  {;; offline workspace dev -- pin transitive langchain-clj to local checkout
   :dev {:override-deps
         {io.github.com-junkawasaki/langchain-clj
-         {:local/root "../../com-junkawasaki/langchain-clj"}}}
+         {:local/root "../../kotoba-lang/langchain"}}}
   ;; clojure -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "factoring.sim"]}
   :test {:extra-paths ["test"]
