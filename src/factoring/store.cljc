@@ -11,6 +11,11 @@
                         Datomic Local or a kotoba-server pod by swapping
                         `langchain.db`'s `:db-api` (see langchain.kotoba-db).
 
+  `DatomicStore` uses `langchain-store.core` (ADR-2607141600) for the
+  shared EDN-blob codec (`ls/enc`/`ls/dec*`) instead of hand-rolling it
+  -- the same seam `cloud-itonami-isic-3314`'s `store.cljc` already
+  establishes.
+
   Both implement the same protocol and pass the same contract
   (test/factoring/store_contract_test.cljc), which is the whole point:
   the actor, the Factoring Governor and the audit ledger never know
@@ -35,9 +40,8 @@
   verified/underwritten, which advance and settlement actually
   happened, on what jurisdictional basis, and every solvency
   attestation ever published' is always a query over an immutable log."
-  (:require #?(:clj  [clojure.edn :as edn]
-               :cljs [cljs.reader :as edn])
-            [factoring.registry :as registry]
+  (:require [factoring.registry :as registry]
+            [langchain-store.core :as ls]
             [langchain.db :as d]))
 
 (defprotocol Store
@@ -377,8 +381,8 @@
    :sequence/key                  {:db/unique :db.unique/identity}
    :settlement-account/singleton   {:db/unique :db.unique/identity}})
 
-(defn- enc [v] (pr-str v))
-(defn- dec* [s] (when s (edn/read-string s)))
+(def ^:private enc "See langchain-store.core/enc." ls/enc)
+(def ^:private dec* "See langchain-store.core/dec*." ls/dec*)
 (defn- seq-key [kind jurisdiction] (str (name kind) ":" jurisdiction))
 
 (defn- receivable->tx [{:keys [id client-id client-name debtor-id debtor-name debtor-credit-limit

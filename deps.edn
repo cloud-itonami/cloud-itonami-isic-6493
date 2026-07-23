@@ -13,7 +13,12 @@
         ;; docs/adr/0003-real-banking-swift-ekyc-integration.md.
         io.github.kotoba-lang/swift   {:local/root "../../kotoba-lang/swift"}
         io.github.kotoba-lang/banking {:local/root "../../kotoba-lang/banking"}
-        io.github.kotoba-lang/ekyc    {:local/root "../../kotoba-lang/ekyc"}}
+        io.github.kotoba-lang/ekyc    {:local/root "../../kotoba-lang/ekyc"}
+        ;; `factoring.store`'s DatomicStore uses `langchain-store.core`'s
+        ;; shared EDN-blob codec (`ls/enc`/`ls/dec*`) instead of hand-
+        ;; rolling it -- the same dep `cloud-itonami-isic-3314` pins.
+        io.github.kotoba-lang/langchain-store
+        {:local/root "../../kotoba-lang/langchain-store"}}
  :aliases
  {;; offline workspace dev -- pin transitive langchain-clj to local checkout
   :dev {:override-deps
