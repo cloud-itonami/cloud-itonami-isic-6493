@@ -1,0 +1,89 @@
+name: ci
+
+# Kept correct and ready for when Actions are enabled on the org.
+# Until then: run locally with `clojure -M:lint` and `clojure -M:dev:test`.
+#
+# Workspace layout: deps use :local/root to kotoba-lang/langgraph,
+# kotoba-lang/swift, kotoba-lang/banking, kotoba-lang/ekyc and
+# kotoba-lang/langchain-store (public), plus kotoba-lang/langchain via
+# the :dev alias override. CI reconstructs sibling paths -- including
+# the TRANSITIVE ones each of those needs via THEIR OWN :local/root:
+# kotoba-lang/html + kotoba-lang/css (swift, banking, ekyc all three),
+# kotoba-lang/xml (swift only) and kotoba-lang/identity (ekyc only).
+#
+# `worker/` (the Cloudflare Worker translation layer, routes.cljc +
+# kv_store.cljs + shadow-cljs/wrangler) is deliberately OUT of scope
+# here: it has its own toolchain (npm/shadow-cljs) and its own
+# deps.edn with different sibling paths -- not this repo's
+# `clojure -M:dev:test` gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: DeLaGuardo/setup-clojure@13.0
+        with: { cli: latest }
+      - name: clj-kondo (errors fail the build)
+        run: clojure -M:lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: orgs/cloud-itonami/cloud-itonami-isic-6493 }
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/langgraph
+          path: orgs/kotoba-lang/langgraph
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/langchain
+          path: orgs/kotoba-lang/langchain
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/swift
+          path: orgs/kotoba-lang/swift
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/banking
+          path: orgs/kotoba-lang/banking
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/ekyc
+          path: orgs/kotoba-lang/ekyc
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/identity
+          path: orgs/kotoba-lang/identity
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/html
+          path: orgs/kotoba-lang/html
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/css
+          path: orgs/kotoba-lang/css
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/xml
+          path: orgs/kotoba-lang/xml
+      - uses: actions/checkout@v4
+        with:
+          repository: kotoba-lang/langchain-store
+          path: orgs/kotoba-lang/langchain-store
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: DeLaGuardo/setup-clojure@13.0
+        with: { cli: latest }
+      - name: test (governor · store parity · registry · phases · facts)
+        working-directory: orgs/cloud-itonami/cloud-itonami-isic-6493
+        run: clojure -M:dev:test
