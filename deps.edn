@@ -18,7 +18,16 @@
         ;; shared EDN-blob codec (`ls/enc`/`ls/dec*`) instead of hand-
         ;; rolling it -- the same dep `cloud-itonami-isic-3314` pins.
         io.github.kotoba-lang/langchain-store
-        {:local/root "../../kotoba-lang/langchain-store"}}
+        {:local/root "../../kotoba-lang/langchain-store"}
+        ;; 座標二重化の解消（ADR-2608081000）。html/css は依存グラフの中で
+        ;; :local/root と :git/sha の両方で宣言され、どちらも推移依存に落ちるため
+        ;; tools.deps が 'Unable to compare versions' で classpath を組めなかった
+        ;; （= この repo の suite は 1 度も走っていなかった）。top-level で深さ 1 に置く。
+        io.github.kotoba-lang/html
+        {:local/root "../../kotoba-lang/html"}
+        io.github.kotoba-lang/css
+        {:local/root "../../kotoba-lang/css"}
+        }
  :aliases
  {;; offline workspace dev -- pin transitive langchain-clj to local checkout
   :dev {:override-deps
