@@ -27,6 +27,17 @@
         {:local/root "../../kotoba-lang/html"}
         io.github.kotoba-lang/css
         {:local/root "../../kotoba-lang/css"}
+        ;; デジタル庁デザインシステム (DADS) -- CLAUDE.md の repo-wide mandatory
+        ;; な基盤デザインシステム。`factoring.render-html` が `jp-go-dds.skin`
+        ;; の CSS をオペレーターコンソールの土台に使う。
+        ;;
+        ;; ⚠ これは html/css を推移依存として :git/sha で引く。上の 2 つを
+        ;; top-level (深さ 1) の :local/root で宣言してあるので tools.deps は
+        ;; そちらを採り、ADR-2608081000 の「座標二重化で classpath が組めない」
+        ;; 再発にはならない -- 上の 2 エントリを消すとこれが壊れる。
+        io.github.kotoba-lang/jp-go-digital-design-system
+        {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system"
+         :git/sha "83db99546eabc53613ae826ea41d1533a3c574af"}
         }
  :aliases
  {;; offline workspace dev -- pin transitive langchain-clj to local checkout
@@ -35,6 +46,16 @@
          {:local/root "../../kotoba-lang/langchain"}}}
   ;; clojure -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "factoring.sim"]}
+  ;; clojure -M:render-html  -> RUN the actor and write
+  ;; docs/samples/operator-console.html from the actual run output.
+  ;; Self-contained (carries the same :dev override) so it works both as
+  ;; `-M:render-html` and as `-M:dev:render-html`. Optional first arg is
+  ;; an output directory, used by the determinism check to build into a
+  ;; scratch dir instead of docs/samples.
+  :render-html {:override-deps
+                {io.github.com-junkawasaki/langchain-clj
+                 {:local/root "../../kotoba-lang/langchain"}}
+                :main-opts ["-m" "factoring.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
