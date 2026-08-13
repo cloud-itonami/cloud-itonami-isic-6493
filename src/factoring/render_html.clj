@@ -916,30 +916,38 @@
 (defn build!
   "Run the actor, enforce the HARD-hold invariant, render, and write.
   Throws (writing NOTHING) if the run produced fewer than
-  `min-hard-holds` HARD governor holds."
-  [out-dir]
-  (let [run (run-book)
-        holds (hard-holds run)]
-    (when (< (count holds) min-hard-holds)
-      (throw (ex-info
-              (str "refusing to write the operator console: the run produced "
-                   (count holds) " HARD governor hold(s), need at least "
-                   min-hard-holds
-                   ". A console with no observed refusal is not evidence of a governor.")
-              {:hard-holds (count holds)
-               :required min-hard-holds
-               :classes (frequencies (map classify-fact (all-facts run)))})))
-    (let [{:keys [sections html]} (page run)
-          dir (java.io.File. ^String out-dir)
-          f (java.io.File. dir "operator-console.html")]
-      (.mkdirs dir)
-      (spit f html)
-      {:file (.getPath f)
-       :bytes (count (.getBytes ^String html "UTF-8"))
-       :sections (count sections)
-       :rows (reduce + (map :rows sections))
-       :hard-holds (count holds)
-       :classes (frequencies (map classify-fact (all-facts run)))})))
+  `min-hard-holds` HARD governor holds.
+
+  `opts` is forwarded to `run-book`. `-main` never passes any, so the
+  shipped build always runs the whole book; the option exists so the
+  invariant can be DEMONSTRATED to fail -- calling
+  `(build! dir {:omit governor-refusal-probe-ids})` must throw and
+  leave `dir` empty. A guard that has never been seen to fail is
+  indistinguishable from one that cannot fire."
+  ([out-dir] (build! out-dir {}))
+  ([out-dir opts]
+   (let [run   (run-book opts)
+         holds (hard-holds run)]
+     (when (< (count holds) min-hard-holds)
+       (throw (ex-info
+               (str "refusing to write the operator console: the run produced "
+                    (count holds) " HARD governor hold(s), need at least "
+                    min-hard-holds
+                    ". A console with no observed refusal is not evidence of a governor.")
+               {:hard-holds (count holds)
+                :required min-hard-holds
+                :classes (frequencies (map classify-fact (all-facts run)))})))
+     (let [{:keys [sections html]} (page run)
+           dir (java.io.File. ^String out-dir)
+           f (java.io.File. dir "operator-console.html")]
+       (.mkdirs dir)
+       (spit f html)
+       {:file (.getPath f)
+        :bytes (count (.getBytes ^String html "UTF-8"))
+        :sections (count sections)
+        :rows (reduce + (map :rows sections))
+        :hard-holds (count holds)
+        :classes (frequencies (map classify-fact (all-facts run)))}))))
 
 (defn -main [& [out-dir]]
   (let [r (build! (or out-dir "docs/samples"))]
