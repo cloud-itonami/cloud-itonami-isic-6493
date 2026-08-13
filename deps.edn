@@ -35,6 +35,16 @@
          {:local/root "../../kotoba-lang/langchain"}}}
   ;; clojure -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "factoring.sim"]}
+  ;; clojure -M:render-html  -> RUN the actor and write
+  ;; docs/samples/operator-console.html from the actual run output.
+  ;; Self-contained (carries the same :dev override) so it works both as
+  ;; `-M:render-html` and as `-M:dev:render-html`. Optional first arg is
+  ;; an output directory, used by the determinism check to build into a
+  ;; scratch dir instead of docs/samples.
+  :render-html {:override-deps
+                {io.github.com-junkawasaki/langchain-clj
+                 {:local/root "../../kotoba-lang/langchain"}}
+                :main-opts ["-m" "factoring.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>オペレーターコンソール | cloud-itonami-isic-6493 (Factoring)</title><meta name="description" content="cloud-itonami-isic-6493 factoring actor -- 実行時に生成されたオペレーターコンソール"><style>table { width: 100%; border-collapse: collapse; font-size: 14px; }
+td { vertical-align: top; }
+.ok { color: #137a3f; }
+.idx a { font-size: 12px; color: #264af4; text-decoration: none; border: 1px solid #c5d7fb; border-radius: 999px; padding: 3px 10px; background: #fff; }
+body { font-family: system-ui,-apple-system,sans-serif; margin: 0; color: #1a1a1a; background: #fafafa; }
+header.bar .sub { font-size: 12px; color: #666; margin-left: 8px; }
+p { font-size: 13px; line-height: 1.7; }
+header.bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+h2 { margin-top: 0; font-size: 15px; }
+.lead { font-size: 13px; color: #444; line-height: 1.8; }
+td.amt { font-variant-numeric: tabular-nums; text-align: right; }
+.idx { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.warn { color: #b25c00; background: #fff8e1; padding: 2px 6px; border-radius: 4px; }
+main { max-width: 980px; margin: 24px auto; padding: 0 20px; }
+header.bar h1 { font-size: 18px; margin: 0; font-weight: 600; }
+.muted { color: #888; }
+.card h2 { border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+.critical { color: #fff; background: #b3261e; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.card { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.err { color: #b3261e; background: #fbe9e7; padding: 2px 6px; border-radius: 4px; }
+th { font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+code { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 12px; background: #f4f6f8; padding: 1px 4px; border-radius: 3px; }
+header.bar .badge { margin-left: auto; font-size: 12px; color: #666; }</style></head>
+  <body>
+    <header class="bar">
+      <h1>Factoring オペレーターコンソール</h1>
+      <span class="sub">cloud-itonami-isic-6493 · ISIC 6493 · :finance/factoring</span>
+      <span class="badge">ビルド時生成 — 実行結果</span>
+    </header>
+    <main><div class="card">
+      <p class="lead">このコンソールは <code>factoring.operation</code> の実際の actor 実行から生成されている。24 件のシナリオを 1 つのシード済み台帳に対して順に流し、助言者の提案 → ガバナーによる検閲 → rollout phase ゲート → コミット / hold / 人間承認、という経路をそのまま通したうえで、残った台帳とレジスタを読み出している。</p>
+      <div class="idx"><a href="#summary">実行サマリー (7)</a><a href="#scenarios">シナリオ (24)</a><a href="#hard-holds">ガバナー HARD 拒否 (9)</a><a href="#classifier">拒否の分類 (10)</a><a href="#approver">承認者の帰属 (17)</a><a href="#receivables">債権レジスタ (7)</a><a href="#funders">資金提供者 (3)</a><a href="#verifications">検証レジスタ (5)</a><a href="#underwritings">引受レジスタ (3)</a><a href="#advances">前渡し (actuation 1) (1)</a><a href="#settlements">留保金精算 (actuation 2) (1)</a><a href="#attestations">支払能力アテステーション (1)</a><a href="#ledger">監査台帳 (24)</a><a href="#jurisdictions">法域カタログ (4)</a><a href="#phases">rollout phase (4)</a><a href="#provenance">由来と限界 (8)</a></div>
+    </div><section id="summary">
+      <div class="card">
+        <h2>実行サマリー</h2>
+        <p class="muted">この表の全数値は、シードデータに対して <code>factoring.operation/build</code> のコンパイル済み StateGraph を <code>langgraph.graph/run*</code> で実際に駆動した結果の監査ファクトを数えたもの。</p>
+        <table>
+          <thead>
+            <tr><th>指標</th><th>値</th></tr>
+          </thead>
+          <tbody><tr><td>実行シナリオ</td><td>24</td></tr><tr><td>監査ファクト総数</td><td>24</td></tr><tr><td>コミット</td><td>14</td></tr><tr><td>ガバナー HARD 拒否</td><td>8</td></tr><tr><td>phase ゲート拒否</td><td>1</td></tr><tr><td>人間の承認者による拒否</td><td>1</td></tr><tr><td>分類不能な hold</td><td>0</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="scenarios">
+      <div class="card">
+        <h2>シナリオ (実行順・状態は前のシナリオを引き継ぐ)</h2>
+        <table>
+          <thead>
+            <tr><th>id</th><th>phase</th><th>op</th><th>対象</th><th>結果</th><th>承認</th><th>confidence</th><th>分類</th><th>備考</th></tr>
+          </thead>
+          <tbody><tr><td>intake-1</td><td>3</td><td>receivable/intake</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>コミット</td><td>Phase 3 の唯一の auto-commit 対象 (資本リスク無し)</td></tr><tr><td>verify-1</td><td>3</td><td>receivable/verify</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>JPN・制裁該当なし・eKYC pass</td></tr><tr><td>underwrite-1</td><td>3</td><td>receivable/underwrite</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>債務者/資金提供者いずれの集中度も上限内</td></tr><tr><td>advance-1-attempt-1</td><td>3</td><td>advance/fund</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>支払能力アテステーション未発行の状態で資金前渡しを試みる</td></tr><tr><td>attest-1</td><td>3</td><td>solvency/attest</td><td>book</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>cfo-tanaka</code>
+          </td><td>0.00</td><td>コミット</td><td>台帳からの独立再計算 (anti-Zentoshin)</td></tr><tr><td>advance-1-attempt-2</td><td>3</td><td>advance/fund</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>kessai-suzuki</code>
+          </td><td>0.00</td><td>コミット</td><td>actuation 1 -- 実際の現金移動</td></tr><tr><td>verify-4</td><td>3</td><td>receivable/verify</td><td>rcv-4</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>rcv-1 と同一債務者 (debtor-1)</td></tr><tr><td>underwrite-4</td><td>3</td><td>receivable/underwrite</td><td>rcv-4</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>debtor-1 の累計与信 + funder-1 の累計供給、双方を試す</td></tr><tr><td>verify-6</td><td>3</td><td>receivable/verify</td><td>rcv-6</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>別債務者だが funder-1 は rcv-1 と同一</td></tr><tr><td>underwrite-6</td><td>3</td><td>receivable/underwrite</td><td>rcv-6</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>資金提供者集中のみを単独で試す</td></tr><tr><td>verify-5</td><td>3</td><td>receivable/verify</td><td>rcv-5</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>GBR</td></tr><tr><td>underwrite-5</td><td>3</td><td>receivable/underwrite</td><td>rcv-5</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>集中度は上限内</td></tr><tr><td>advance-5</td><td>3</td><td>advance/fund</td><td>rcv-5</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>適用 fee-rate が公開スケジュールと一致するかを試す</td></tr><tr><td>verify-3</td><td>3</td><td>receivable/verify</td><td>rcv-3</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>債務者が制裁スクリーニング該当</td></tr><tr><td>verify-2</td><td>3</td><td>receivable/verify</td><td>rcv-2</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>factoring.facts に未登録の法域を提示させる</td></tr><tr><td>verify-7</td><td>3</td><td>receivable/verify</td><td>rcv-7</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>DEU -- 必要書類を充足させてから前渡しに進む</td></tr><tr><td>underwrite-7</td><td>3</td><td>receivable/underwrite</td><td>rcv-7</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>funder-3 は未使用 -- 集中度に余裕</td></tr><tr><td>advance-7-rejected</td><td>3</td><td>advance/fund</td><td>rcv-7</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            rejected / <code>kessai-suzuki</code>
+          </td><td>0.00</td><td>人間の承認者による拒否</td><td>ガバナー clean・エスカレーション後、人間の承認者が現金移動を拒否</td></tr><tr><td>collect-1</td><td>3</td><td>receivable/collect</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>shinsa-yamada</code>
+          </td><td>0.00</td><td>コミット</td><td>債務者からの入金 (factor からの出金ではない)</td></tr><tr><td>settle-1</td><td>3</td><td>reserve/settle</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>
+            approved / <code>kessai-suzuki</code>
+          </td><td>0.00</td><td>コミット</td><td>actuation 2 -- 留保金の解放</td></tr><tr><td>advance-1-again</td><td>3</td><td>advance/fund</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>完了済み債権への二重前渡しを試みる</td></tr><tr><td>settle-1-again</td><td>3</td><td>reserve/settle</td><td>rcv-1</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>ガバナー HARD 拒否</td><td>二重精算を試みる</td></tr><tr><td>verify-5-phase-1</td><td>1</td><td>receivable/verify</td><td>rcv-5</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>phase ゲート (ガバナーは clean)</td><td>ガバナーは clean。phase 1 が :receivable/verify を書き込み許可していない</td></tr><tr><td>report-phase-0</td><td>0</td><td>audit/report</td><td>book</td><td>
+            <span class="muted">—</span>
+          </td><td>—</td><td>0.00</td><td>コミット</td><td>read op は phase 0 でも通過する (phase は自律性のみを制限)</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="hard-holds">
+      <div class="card">
+        <h2>ガバナー HARD 拒否 — 8 件 / 拒否理由 9 件</h2>
+        <p class="muted">HARD 違反は人間の承認者が上書きできない。以下は <code>factoring.governor/check</code> が実際に返した違反そのもの (ledger から読み出したもので、再構成ではない)。</p>
+        <table>
+          <thead>
+            <tr><th>op</th><th>対象</th><th>rule</th><th>何を拒否したか</th></tr>
+          </thead>
+          <tbody><tr><td>advance/fund</td><td>rcv-1</td><td>
+            <span class="critical">solvency-attestation-stale-or-missing</span>
+          </td><td>直近の支払能力アテステーションが無い/古い、または本件を含めた即時再計算がinsolvent(outstanding=1700000.0 &gt; capacity=9000000)を示している</td></tr><tr><td>receivable/underwrite</td><td>rcv-4</td><td>
+            <span class="critical">debtor-concentration-exceeded</span>
+          </td><td>debtor-1 への累計与信残高が上限(5000000)を超過している</td></tr><tr><td>receivable/underwrite</td><td>rcv-4</td><td>
+            <span class="critical">funder-concentration-exceeded</span>
+          </td><td>funder-1 への累計資金供給残高が同資金提供者の funding-capacity を超過している (または資金提供者が未登録)</td></tr><tr><td>receivable/underwrite</td><td>rcv-6</td><td>
+            <span class="critical">funder-concentration-exceeded</span>
+          </td><td>funder-1 への累計資金供給残高が同資金提供者の funding-capacity を超過している (または資金提供者が未登録)</td></tr><tr><td>advance/fund</td><td>rcv-5</td><td>
+            <span class="critical">fee-rate-mismatch</span>
+          </td><td>rcv-5 の適用fee-rate(0.99)が公開スケジュール(0.02, tier=:tier-a)と一致しない</td></tr><tr><td>receivable/verify</td><td>rcv-3</td><td>
+            <span class="critical">sanctions-hit</span>
+          </td><td>rcv-3 のクライアントまたは債務者が制裁スクリーニングに該当</td></tr><tr><td>receivable/verify</td><td>rcv-2</td><td>
+            <span class="critical">no-spec-basis</span>
+          </td><td>公式spec-basisの引用が無い提案は法域要件として扱えない</td></tr><tr><td>advance/fund</td><td>rcv-1</td><td>
+            <span class="critical">double-advance</span>
+          </td><td>rcv-1 は既に資金前渡し済み</td></tr><tr><td>reserve/settle</td><td>rcv-1</td><td>
+            <span class="critical">double-settle</span>
+          </td><td>rcv-1 は既に留保金精算済み</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="classifier">
+      <div class="card">
+        <h2>拒否の分類 — ガバナー拒否と phase ゲートと人間の拒否は別物</h2>
+        <p>分類はファクトの <code>:t</code> を最初に見る。<code>:violations</code> だけを見る分類器は誤る: <code>:approval-rejected</code> ファクト自身が <code>{:rule :approver-rejected}</code> を <code>:violations</code> に持つため (<code>factoring.operation</code> の <code>:request-approval</code> ノード)、人間の拒否をガバナー拒否として数えてしまう。</p>
+        <p class="muted">また <code>:phase-reason</code> を持つ hold はガバナーが clean だったことを意味する (<code>factoring.phase/gate</code> はガバナーが hold のとき reason を nil にするため、両者は構造上排他)。</p>
+        <table>
+          <thead>
+            <tr><th>fact :t</th><th>op</th><th>対象</th><th>:phase-reason</th><th>:violations 件数</th><th>分類</th></tr>
+          </thead>
+          <tbody><tr><td>governor-hold</td><td>advance/fund</td><td>rcv-1</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>receivable/underwrite</td><td>rcv-4</td><td>—</td><td>2</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>receivable/underwrite</td><td>rcv-6</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>advance/fund</td><td>rcv-5</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>receivable/verify</td><td>rcv-3</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>receivable/verify</td><td>rcv-2</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>approval-rejected</td><td>advance/fund</td><td>rcv-7</td><td>—</td><td>1</td><td>
+            <span class="err">人間の承認者による拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>advance/fund</td><td>rcv-1</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>reserve/settle</td><td>rcv-1</td><td>—</td><td>1</td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td></tr><tr><td>governor-hold</td><td>receivable/verify</td><td>rcv-5</td><td>phase-disabled</td><td>0</td><td>
+            <span class="warn">phase ゲート (ガバナーは clean)</span>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="approver">
+      <div class="card">
+        <h2>承認者の帰属 — レンダリング時に実測</h2>
+        <p>各行は、そのシナリオが実際に書き込んだレジスタを走査した結果。「保持」= そのシナリオが渡した承認者 id が、コミット後の状態から実際に取り出せる。「喪失」= 取り出せない。<strong>この判定はハードコードされていない</strong> — store が承認者を保持するよう修正されれば、このページは編集なしで「保持」を報告する。</p>
+        <table>
+          <thead>
+            <tr><th>op</th><th>対象</th><th>レジスタ</th><th>承認者 id</th><th>承認者形状のキー</th><th>判定</th></tr>
+          </thead>
+          <tbody><tr><td>receivable/verify</td><td>rcv-1</td><td>verifications</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-1</td><td>receivables</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-1</td><td>underwritings</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>solvency/attest</td><td>book</td><td>attestations</td><td>
+            <code>cfo-tanaka</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>advance/fund</td><td>rcv-1</td><td>receivables</td><td>
+            <code>kessai-suzuki</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>advance/fund</td><td>rcv-1</td><td>advances</td><td>
+            <code>kessai-suzuki</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>receivable/verify</td><td>rcv-4</td><td>verifications</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/verify</td><td>rcv-6</td><td>verifications</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/verify</td><td>rcv-5</td><td>verifications</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-5</td><td>receivables</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-5</td><td>underwritings</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/verify</td><td>rcv-7</td><td>verifications</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-7</td><td>receivables</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>receivable/underwrite</td><td>rcv-7</td><td>underwritings</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>:approved-by</td><td>
+            <span class="ok">保持</span>
+          </td></tr><tr><td>receivable/collect</td><td>rcv-1</td><td>receivables</td><td>
+            <code>shinsa-yamada</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>reserve/settle</td><td>rcv-1</td><td>receivables</td><td>
+            <code>kessai-suzuki</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr><tr><td>reserve/settle</td><td>rcv-1</td><td>settlements</td><td>
+            <code>kessai-suzuki</code>
+          </td><td>—</td><td>
+            <span class="critical">喪失</span>
+          </td></tr></tbody>
+        </table>
+        <h2 style="margin-top:20;">開示: 現金移動経路で承認者の帰属が失われている</h2><p><span class="critical">未修正</span> 上表のうち <strong>9 件</strong> のレジスタ書き込みで、承認した人間の id がコミット後の状態から復元できない。内訳: receivable/underwrite → receivables / solvency/attest → attestations / advance/fund → receivables / advance/fund → advances / receivable/collect → receivables / reserve/settle → receivables / reserve/settle → settlements。</p><p>原因は <code>factoring.operation/commit-record</code> が承認者を <code>:payload</code> にのみ載せる (<code>:value</code> には載せない) 一方、<code>factoring.store</code> の <code>commit-record!</code> が effect ごとに異なる経路を通ることにある: <code>:verification/set</code> と <code>:underwriting/set</code> は <code>:payload</code> をそのまま格納するため承認者が残るが、<code>:advance/mark-funded</code> と <code>:settlement/mark-settled</code> は payload を使わず <code>advance!</code>/<code>settle!</code> が組み立てたレコードを追記するため、承認者はどこにも書かれない。</p><p><strong>これは書類経路ではなく現金経路で起きている。</strong> この actor が実世界で行う金銭移動は 2 つ (<code>:advance/fund</code> = クライアントへの現金前渡し、<code>:reserve/settle</code> = 留保金の解放) で、<strong>その 2 つがちょうど、どの人間が承認したかを SSoT から復元できない操作である</strong>。両者は <code>factoring.phase</code> のどの phase でも auto-commit されず、必ず人間の承認を要求する設計であるにもかかわらず、その承認の記録が残らない。</p><p>本タスクはレンダラの追加であり、この欠陥は<strong>修正せず開示する</strong> (store の commit 経路の変更は本タスクの範囲外)。</p>
+        <h2 style="margin-top:20;">警告: ledger の :actor は承認者ではない</h2>
+        <p>監査 ledger の <code>:committed</code> ファクト 14 件が持つ <code>:actor</code> の値は `op-1` のみで、これは <code>factoring.operation/commit-fact</code> が <code>(:actor-id context)</code> から埋める<strong>実行アクター</strong>であって承認者ではない。本ページはすべての承認者 id を実行アクター id (<code>op-1</code>) と異なる値にしているため、この 2 つが偶然一致して <code>:actor</code> を承認記録と誤読する余地が無い — 実測: 承認者 id が <code>:actor</code> に現れたか = <strong>いいえ</strong>。</p>
+      </div>
+    </section><section id="receivables">
+      <div class="card">
+        <h2>債権レジスタ (実行後の状態)</h2>
+        <table>
+          <thead>
+            <tr><th>id</th><th>クライアント</th><th>account debtor</th><th>法域</th><th>額面</th><th>通貨</th><th>tier</th><th>fee-rate</th><th>funder</th><th>status</th><th>advance#</th><th>settlement#</th></tr>
+          </thead>
+          <tbody><tr><td>rcv-1</td><td>GreenLeaf Logistics K.K.</td><td>Meiwa Trading Co.</td><td>JPN</td><td class="amt">2,000,000</td><td>JPY</td><td>tier-a</td><td>0.02</td><td>funder-1</td><td>
+            <span class="ok">settled</span>
+          </td><td>JPN-ADV-000000</td><td>JPN-SETL-000000</td></tr><tr><td>rcv-2</td><td>Acme Textiles Ltd</td><td>Camden Wholesale plc</td><td>ATL</td><td class="amt">400,000</td><td>USD</td><td>tier-b</td><td>0.03</td><td>funder-2</td><td>
+            <span class="muted">submitted</span>
+          </td><td>—</td><td>—</td></tr><tr><td>rcv-3</td><td>Rhein Fabrik GmbH</td><td>Sanctioned Trading Corp</td><td>DEU</td><td class="amt">500,000</td><td>EUR</td><td>tier-c</td><td>0.05</td><td>funder-3</td><td>
+            <span class="muted">submitted</span>
+          </td><td>—</td><td>—</td></tr><tr><td>rcv-4</td><td>Cascade Builders Inc</td><td>Meiwa Trading Co.</td><td>USA</td><td class="amt">3,500,000</td><td>USD</td><td>tier-a</td><td>0.02</td><td>funder-1</td><td>
+            <span class="muted">submitted</span>
+          </td><td>—</td><td>—</td></tr><tr><td>rcv-5</td><td>Solent Marine Supplies</td><td>Northgate Retail Group</td><td>GBR</td><td class="amt">300,000</td><td>GBP</td><td>tier-a</td><td>0.99</td><td>funder-2</td><td>
+            <span class="muted">underwritten</span>
+          </td><td>—</td><td>—</td></tr><tr><td>rcv-6</td><td>Fujimori Precision Parts K.K.</td><td>Cascadia Assembly Group</td><td>USA</td><td class="amt">3,000,000</td><td>USD</td><td>tier-a</td><td>0.02</td><td>funder-1</td><td>
+            <span class="muted">submitted</span>
+          </td><td>—</td><td>—</td></tr><tr><td>rcv-7</td><td>Tidewater Exports LLC</td><td>Baltic Freight Holdings</td><td>DEU</td><td class="amt">200,000</td><td>EUR</td><td>tier-b</td><td>0.03</td><td>funder-3</td><td>
+            <span class="muted">underwritten</span>
+          </td><td>—</td><td>—</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="funders">
+      <div class="card">
+        <h2>資金提供者レジスタ</h2>
+        <p class="muted">現金化係数 0.85 (<code>factoring.registry/advance-rate</code>) を額面エクスポージャに適用したものが資金供給残高。集中度チェックはこの値を funding-capacity と比較する。</p>
+        <table>
+          <thead>
+            <tr><th>id</th><th>名称</th><th>funding-capacity</th><th>額面エクスポージャ</th><th>現金換算</th><th>紐づく債権数</th></tr>
+          </thead>
+          <tbody><tr><td>funder-1</td><td>Harborlight Capital Partners</td><td class="amt">4,000,000</td><td class="amt">0</td><td class="amt">0</td><td>3</td></tr><tr><td>funder-2</td><td>Meridian Trade Finance</td><td class="amt">3,000,000</td><td class="amt">0</td><td class="amt">0</td><td>2</td></tr><tr><td>funder-3</td><td>Nordbrücke Receivables Fund</td><td class="amt">2,000,000</td><td class="amt">0</td><td class="amt">0</td><td>2</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="verifications">
+      <div class="card">
+        <h2>検証レジスタ (spec-basis + eKYC)</h2>
+        <table>
+          <thead>
+            <tr><th>債権</th><th>法域</th><th>必要書類件数</th><th>spec-basis 出典</th><th>eKYC client/debtor</th><th>承認者</th></tr>
+          </thead>
+          <tbody><tr><td>rcv-1</td><td>JPN</td><td>4</td><td>https://laws.e-gov.go.jp/law/410AC0000000104/</td><td>pass / pass</td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-4</td><td>USA</td><td>4</td><td>https://www.law.cornell.edu/ucc/9</td><td>pass / pass</td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-5</td><td>GBR</td><td>4</td><td>https://www.ukfinance.org.uk/</td><td>pass / pass</td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-6</td><td>USA</td><td>4</td><td>https://www.law.cornell.edu/ucc/9</td><td>pass / pass</td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-7</td><td>DEU</td><td>4</td><td>https://www.gesetze-im-internet.de/bgb/__398.html</td><td>pass / pass</td><td>
+            <code>shinsa-yamada</code>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="underwritings">
+      <div class="card">
+        <h2>引受レジスタ</h2>
+        <table>
+          <thead>
+            <tr><th>債権</th><th>債務者エクスポージャ</th><th>与信上限</th><th>判定</th><th>承認者</th></tr>
+          </thead>
+          <tbody><tr><td>rcv-1</td><td class="amt">2,000,000</td><td class="amt">5,000,000</td><td>
+            <span class="ok">within-limits</span>
+          </td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-5</td><td class="amt">300,000</td><td class="amt">2,000,000</td><td>
+            <span class="ok">within-limits</span>
+          </td><td>
+            <code>shinsa-yamada</code>
+          </td></tr><tr><td>rcv-7</td><td class="amt">200,000</td><td class="amt">5,000,000</td><td>
+            <span class="ok">within-limits</span>
+          </td><td>
+            <code>shinsa-yamada</code>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="advances">
+      <div class="card">
+        <h2>前渡しレコード — actuation 1 (現金がクライアントへ出る)</h2>
+        <table>
+          <thead>
+            <tr><th>record_id</th><th>債権</th><th>法域</th><th>額面</th><th>前渡額</th><th>留保額</th><th>決済指図</th><th>承認者の帰属</th></tr>
+          </thead>
+          <tbody><tr><td>JPN-ADV-000000</td><td>rcv-1</td><td>JPN</td><td class="amt">2,000,000</td><td class="amt">1,700,000</td><td class="amt">300,000</td><td>swift-mt103 / advance</td><td>
+            <span class="critical">承認者記録なし</span>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="settlements">
+      <div class="card">
+        <h2>留保金精算レコード — actuation 2 (留保金がクライアントへ出る)</h2>
+        <table>
+          <thead>
+            <tr><th>record_id</th><th>債権</th><th>法域</th><th>額面</th><th>手数料</th><th>精算額</th><th>決済指図</th><th>承認者の帰属</th></tr>
+          </thead>
+          <tbody><tr><td>JPN-SETL-000000</td><td>rcv-1</td><td>JPN</td><td class="amt">2,000,000</td><td class="amt">40,000</td><td class="amt">260,000</td><td>swift-mt103 / settle</td><td>
+            <span class="critical">承認者記録なし</span>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="attestations">
+      <div class="card">
+        <h2>支払能力アテステーション (公開クエリ可能)</h2>
+        <p class="muted">アテステーションは 2 件の前渡しが追加された時点で stale になる (<code>factoring.registry/stale-after-n-advances</code>)。stale/未発行の状態では前渡しは HARD 拒否される。</p>
+        <table>
+          <thead>
+            <tr><th>record_id</th><th>債務残高</th><th>資金供給能力</th><th>カバレッジ</th><th>前渡し件数</th><th>solvent</th></tr>
+          </thead>
+          <tbody><tr><td>GLOBAL-ATTEST-000000</td><td class="amt">0</td><td class="amt">9,000,000</td><td>0%</td><td>0</td><td>
+            <span class="ok">true</span>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="ledger">
+      <div class="card">
+        <h2>監査台帳 (append-only)</h2>
+        <p class="muted"><code>:actor</code> 列は実行アクターであり承認者ではない (上の「承認者の帰属」節を参照)。</p>
+        <table>
+          <thead>
+            <tr><th>#</th><th>fact</th><th>op</th><th>対象</th><th>:actor</th><th>disposition</th><th>分類</th><th>basis</th></tr>
+          </thead>
+          <tbody><tr><td>1</td><td>committed</td><td>receivable/intake</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>id</td></tr><tr><td>2</td><td>committed</td><td>receivable/verify</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>民法第467条 (債権譲渡の対抗要件) / 動産及び債権の譲渡の対抗要件に関する民法の特例等に関する法律 (動産・債権譲…, https://laws.e-gov.go.jp/law/410AC0000000104/</td></tr><tr><td>3</td><td>committed</td><td>receivable/underwrite</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>debtor-concentration, funder-concentration</td></tr><tr><td>4</td><td>governor-hold</td><td>advance/fund</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>solvency-attestation-stale-or-missing</td></tr><tr><td>5</td><td>committed</td><td>solvency/attest</td><td>book</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>solvency-report</td></tr><tr><td>6</td><td>committed</td><td>advance/fund</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>rcv-1</td></tr><tr><td>7</td><td>committed</td><td>receivable/verify</td><td>rcv-4</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>Uniform Commercial Code Article 9 (Secured Transactions) §9-…, https://www.law.cornell.edu/ucc/9</td></tr><tr><td>8</td><td>governor-hold</td><td>receivable/underwrite</td><td>rcv-4</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>debtor-concentration-exceeded, funder-concentration-exceeded</td></tr><tr><td>9</td><td>committed</td><td>receivable/verify</td><td>rcv-6</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>Uniform Commercial Code Article 9 (Secured Transactions) §9-…, https://www.law.cornell.edu/ucc/9</td></tr><tr><td>10</td><td>governor-hold</td><td>receivable/underwrite</td><td>rcv-6</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>funder-concentration-exceeded</td></tr><tr><td>11</td><td>committed</td><td>receivable/verify</td><td>rcv-5</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>Consumer Credit Act 1974 (scope boundary for factoring vs. r…, https://www.ukfinance.org.uk/</td></tr><tr><td>12</td><td>committed</td><td>receivable/underwrite</td><td>rcv-5</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>debtor-concentration, funder-concentration</td></tr><tr><td>13</td><td>governor-hold</td><td>advance/fund</td><td>rcv-5</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>fee-rate-mismatch</td></tr><tr><td>14</td><td>governor-hold</td><td>receivable/verify</td><td>rcv-3</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>sanctions-hit</td></tr><tr><td>15</td><td>governor-hold</td><td>receivable/verify</td><td>rcv-2</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>no-spec-basis</td></tr><tr><td>16</td><td>committed</td><td>receivable/verify</td><td>rcv-7</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>Bürgerliches Gesetzbuch (BGB) §398 (Abtretung) i.V.m. §433 (…, https://www.gesetze-im-internet.de/bgb/__398.html</td></tr><tr><td>17</td><td>committed</td><td>receivable/underwrite</td><td>rcv-7</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>debtor-concentration, funder-concentration</td></tr><tr><td>18</td><td>approval-rejected</td><td>advance/fund</td><td>rcv-7</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="err">人間の承認者による拒否</span>
+          </td><td>approver-rejected</td></tr><tr><td>19</td><td>committed</td><td>receivable/collect</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>rcv-1</td></tr><tr><td>20</td><td>committed</td><td>reserve/settle</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>rcv-1</td></tr><tr><td>21</td><td>governor-hold</td><td>advance/fund</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>double-advance</td></tr><tr><td>22</td><td>governor-hold</td><td>reserve/settle</td><td>rcv-1</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="critical">ガバナー HARD 拒否</span>
+          </td><td>double-settle</td></tr><tr><td>23</td><td>governor-hold</td><td>receivable/verify</td><td>rcv-5</td><td>op-1</td><td>
+            <span class="err">hold</span>
+          </td><td>
+            <span class="warn">phase ゲート (ガバナーは clean)</span>
+          </td><td>—</td></tr><tr><td>24</td><td>committed</td><td>audit/report</td><td>book</td><td>op-1</td><td>
+            <span class="ok">commit</span>
+          </td><td>
+            <span class="ok">コミット</span>
+          </td><td>ledger</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="jurisdictions">
+      <div class="card">
+        <h2>法域カタログ (spec-basis の正本)</h2>
+        <p class="muted">カバレッジは正直に報告される: 4 / 4 法域。未登録の法域には spec-basis が存在せず、助言者がそれを創作すれば ガバナーが HARD 拒否する (本ページの <code>verify-2</code> シナリオがその実測)。</p>
+        <table>
+          <thead>
+            <tr><th>ISO3</th><th>名称</th><th>所管/根拠の担い手</th><th>必要書類件数</th><th>出典</th></tr>
+          </thead>
+          <tbody><tr><td>DEU</td><td>Germany</td><td>kein branchenspezifischer Zulassungsträger für echtes Factoring (BaFin nur bei unechtem/kreditähnlichem Factoring, KWG §1 Abs. 1 Nr. 2)</td><td>4</td><td>
+            <code>https://www.gesetze-im-internet.de/bgb/__398.html</code>
+          </td></tr><tr><td>GBR</td><td>United Kingdom</td><td>UK Finance -- Invoice Finance and Asset Based Lending Standards Framework (industry self-regulation; FCA authorisation applies only at the narrow Consumer Credit Act 1974 boundary)</td><td>4</td><td>
+            <code>https://www.ukfinance.org.uk/</code>
+          </td></tr><tr><td>JPN</td><td>Japan</td><td>法務省 (Ministry of Justice) -- 動産・債権譲渡登記制度</td><td>4</td><td>
+            <code>https://laws.e-gov.go.jp/law/410AC0000000104/</code>
+          </td></tr><tr><td>USA</td><td>United States</td><td>State Secretary of State UCC filing offices, under the Uniform Commercial Code</td><td>4</td><td>
+            <code>https://www.law.cornell.edu/ucc/9</code>
+          </td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="phases">
+      <div class="card">
+        <h2>rollout phase</h2>
+        <p class="muted"><code>:advance/fund</code> と <code>:reserve/settle</code> はどの phase の auto 集合にも存在しない — これはロードマップ上の未達ではなく恒久的な構造。</p>
+        <table>
+          <thead>
+            <tr><th>phase</th><th>label</th><th>書き込み可能な op</th><th>auto-commit 可能な op</th></tr>
+          </thead>
+          <tbody><tr><td>0</td><td>read-only</td><td>—</td><td>—</td></tr><tr><td>1</td><td>assisted-intake</td><td>receivable/intake</td><td>—</td></tr><tr><td>2</td><td>assisted-verify</td><td>receivable/intake, receivable/underwrite, receivable/verify</td><td>—</td></tr><tr><td>3</td><td>supervised-auto</td><td>advance/fund, receivable/collect, receivable/intake, receivable/underwrite, receivable/verify, reserve/settle, solvency/attest</td><td>receivable/intake</td></tr></tbody>
+        </table>
+      </div>
+    </section><section id="provenance">
+      <div class="card">
+        <h2>由来と限界</h2>
+        <p>このページはビルド時に生成される。<strong>モックの HTML は含まれない</strong> — 表示されている id・状態・金額・判定・違反はすべて上記の実行から読み出されたもの。導出できない値は表示しない。</p>
+        <table>
+          <thead>
+            <tr><th>項目</th><th>内容</th></tr>
+          </thead>
+          <tbody><tr><td>actor グラフ</td><td>factoring.operation/build — langgraph-clj StateGraph (interrupt-before #{:request-approval})</td></tr><tr><td>実行</td><td>langgraph.graph/run* — シナリオごとに thread-id を分離、承認は resume? true で再開</td></tr><tr><td>ガバナー</td><td>factoring.governor/check — 12 のチェック関数</td></tr><tr><td>store</td><td>factoring.store/MemStore (seed-db)</td></tr><tr><td>シードデータ</td><td>factoring.store/demo-data — 債権 7 件 / demo-funders — 資金提供者 3 件</td></tr><tr><td>助言者</td><td>factoring.factoringllm/mock-advisor (決定論的)</td></tr><tr><td>意図的に非表示</td><td>決済指図の payload/wire — factoring.registry の today-yymmdd (java.time.LocalDate/now) が MT103 :32A に実時刻を埋めるため、決定性のため rail/leg のみ表示</td></tr><tr><td>未検証</td><td>DatomicStore 経路・worker デプロイ・実 LLM 助言者はこのページの実行では駆動していない</td></tr></tbody>
+        </table>
+      </div>
+    </section></main>
+  </body>
+</html>
