@@ -77,6 +77,7 @@
             [langgraph.graph :as g]
             [css.core :as css]
             [html.core :as h]
+            [jp-go-dds.skin :as dds-skin]
             [factoring.facts :as facts]
             [factoring.operation :as op]
             [factoring.phase :as phase]
@@ -839,19 +840,32 @@
 ;; Page
 ;; ---------------------------------------------------------------------------
 
-(def ^:private extra-css
-  {"header.bar .sub"   {:font-size 12 :color "#666" :margin-left 8}
-   ".idx"              {:display :flex :flex-wrap :wrap :gap 8 :margin-bottom 16}
-   ".idx a"            {:font-size 12 :color "#264af4" :text-decoration :none
-                        :border "1px solid #c5d7fb" :border-radius 999
-                        :padding "3px 10px" :background "#fff"}
-   ".card h2"          {:border-bottom "1px solid #f0f0f0" :padding-bottom 8}
-   "code"              {:font-family "ui-monospace,SFMono-Regular,Menlo,monospace"
-                        :font-size 12 :background "#f4f6f8" :padding "1px 4px"
-                        :border-radius 3}
-   "p"                 {:font-size 13 :line-height 1.7}
-   "td"                {:vertical-align :top}
-   ".lead"             {:font-size 13 :color "#444" :line-height 1.8}})
+(def ^:private page-css
+  "DADS の互換スキンが担当しない、このページ固有の要素だけ。
+
+  `jp-go-dds.skin` は cloud-itonami の operator console が使う小さな class
+  語彙 (`.ok` `.warn` `.err` `.critical` `.muted` `.card` `.badge` `.bar`
+  `.amt`) と素の `table`/`th,td`/`code`/`p`/`h1`-`h3` を既に定義しているので、
+  ここで再定義しない。残るのは目次 (`.idx`)・ヘッダ副題 (`.sub`)・リード文
+  (`.lead`) の 3 つだけ。
+
+  スキンの規約どおり raw hex は書かず DADS token のみを参照する。順序が要る
+  ため map ではなくベクタの列にしている。"
+  [["header.bar .sub" {:font-size ".75rem"
+                       :color "var(--color-neutral-solid-gray-600)"}]
+   [".idx" {:display :flex :flex-wrap :wrap :gap ".5rem" :margin-bottom "1rem"}]
+   [".idx a" {:font-size ".75rem"
+              :color "var(--color-primitive-blue-900)"
+              :text-decoration :none
+              :border "1px solid var(--color-primitive-blue-300)"
+              :border-radius 999
+              :padding ".2rem .6rem"
+              :background "var(--color-neutral-white)"}]
+   [".idx a:hover" {:background "var(--color-primitive-blue-50)"}]
+   [".card h2" {:border-bottom "1px solid var(--color-neutral-solid-gray-200)"
+                :padding-bottom ".5rem"}]
+   [".lead" {:color "var(--color-neutral-solid-gray-700)"}]
+   ["td" {:vertical-align :top}]])
 
 (defn page [run]
   (let [sections [(section-run-summary run)
@@ -881,7 +895,11 @@
         [:title "オペレーターコンソール | cloud-itonami-isic-6493 (Factoring)"]
         [:meta {:name "description"
                 :content "cloud-itonami-isic-6493 factoring actor -- 実行時に生成されたオペレーターコンソール"}]
-        (css/style-node (css/merge-theme extra-css))]
+        ;; デジタル庁デザインシステム (DADS) が基盤。vendored dds.css →
+        ;; 互換スキン → このページ固有の追加、の順で連結する (後ろが勝つ)。
+        [:style (h/raw (str (dds-skin/dds+skin)
+                            "\n"
+                            (css/css {:rules page-css})))]]
        [:body
         [:header.bar
          [:h1 "Factoring オペレーターコンソール"]
