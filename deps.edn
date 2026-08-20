@@ -40,10 +40,12 @@
          :git/sha "83db99546eabc53613ae826ea41d1533a3c574af"}
         }
  :aliases
- {;; offline workspace dev -- pin transitive langchain-clj to local checkout
-  :dev {:override-deps
-        {io.github.com-junkawasaki/langchain-clj
-         {:local/root "../../kotoba-lang/langchain"}}}
+ {;; This alias held an :override-deps entry for the retired coordinate
+  ;; io.github.com-junkawasaki/langchain-clj. langgraph declares the same
+  ;; library as io.github.kotoba-lang/langchain, so the entry matched no
+  ;; node in the resolved tree and never reached the classpath -- verified
+  ;; with `clojure -Stree`/-Spath, unchanged before and after removal.
+  :dev {}
   ;; clojure -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "factoring.sim"]}
   ;; clojure -M:render-html  -> RUN the actor and write
@@ -52,10 +54,7 @@
   ;; `-M:render-html` and as `-M:dev:render-html`. Optional first arg is
   ;; an output directory, used by the determinism check to build into a
   ;; scratch dir instead of docs/samples.
-  :render-html {:override-deps
-                {io.github.com-junkawasaki/langchain-clj
-                 {:local/root "../../kotoba-lang/langchain"}}
-                :main-opts ["-m" "factoring.render-html"]}
+  :render-html {:main-opts ["-m" "factoring.render-html"]}
   :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
