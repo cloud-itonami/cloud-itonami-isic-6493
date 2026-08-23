@@ -10,5 +10,8 @@
   "devDependencies": {
     "shadow-cljs": "^3.4.11",
     "wrangler": "^4.106.0"
+  },
+  "overrides": {
+    "undici": "7.29.0"
   }
 }
