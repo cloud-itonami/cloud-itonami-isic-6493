@@ -40,7 +40,7 @@
   bank/payment rail, no real funder capital, no real KYC/AML provider,
   and fabricates none of those to make the demo look more complete than
   it is."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [goog.object :as gobj]
             [kv-store :as kv]
             [factoring.store :as store]
@@ -127,7 +127,7 @@
 
 (defn ^:export fetch-handler [request env _ctx]
   (let [url (js/URL. (.-url request))
-        method (keyword (str/lower-case (.-method request)))
+        method (keyword (str/lower (.-method request)))
         path (.-pathname url)]
     (cond
       (= method :options)

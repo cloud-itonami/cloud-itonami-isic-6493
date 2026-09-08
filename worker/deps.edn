@@ -4,7 +4,12 @@
  ;; (the core factoring.* actor code, unchanged) the idiomatic tools.deps
  ;; way -- routes.cljc is a thin HTTP wrapper around it, never a
  ;; reimplementation, see routes.cljc's own docstring.
- :deps {cloud-itonami/isic-6493 {:local/root ".."}
+ :deps {
+        ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
+        ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
+        ;; this repo silently rides whatever a sibling happens to name.
+        io.github.kotoba-lang/text {:git/sha "73bdb13ae7a3d004b44bca08be03a3191157a38f"}
+       cloud-itonami/isic-6493 {:local/root ".."}
         io.github.com-junkawasaki/langgraph-clj
         {:local/root "../../../com-junkawasaki/langgraph-clj"}}
  :aliases

@@ -143,7 +143,7 @@
   real eKYC vendor at -- the governance/audit/transparency machinery
   (including the real artifact CONSTRUCTION) is fully live and real;
   the transmission/forwarding backend is intentionally not attached."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [factoring.operation :as op]
             [factoring.registry :as registry]
             [factoring.store :as store]
