@@ -73,7 +73,7 @@
   would keep, not the acts of advancing cash or releasing a reserve
   themselves (those are `factoring.operation`'s `:advance/fund` and
   `:reserve/settle`, always human-gated -- see README `Actuation`)."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [kotoba.banking.api :as banking-api]
             [kotoba.ekyc :as ekyc]
             [kotoba.swift :as swift]))
@@ -310,7 +310,7 @@
   (when (< sequence 0)
     (throw (ex-info "advance: sequence must be >= 0" {})))
   (let [advance-amount (compute-advance-amount face-amount)
-        advance-number (str (str/upper-case jurisdiction) "-ADV-" (zero-pad sequence 6))
+        advance-number (str (str/upper jurisdiction) "-ADV-" (zero-pad sequence 6))
         record {"record_id" advance-number
                 "kind" "factoring-advance-draft"
                 "receivable_id" receivable-id
@@ -340,7 +340,7 @@
   (when (< sequence 0)
     (throw (ex-info "settlement: sequence must be >= 0" {})))
   (let [settlement-amount (compute-settlement-amount face-amount fee-rate)
-        settlement-number (str (str/upper-case jurisdiction) "-SETL-" (zero-pad sequence 6))
+        settlement-number (str (str/upper jurisdiction) "-SETL-" (zero-pad sequence 6))
         record {"record_id" settlement-number
                 "kind" "factoring-settlement-draft"
                 "receivable_id" receivable-id
@@ -365,7 +365,7 @@
     (throw (ex-info "attestation: jurisdiction required" {})))
   (when (< sequence 0)
     (throw (ex-info "attestation: sequence must be >= 0" {})))
-  (let [attestation-number (str (str/upper-case jurisdiction) "-ATTEST-" (zero-pad sequence 6))
+  (let [attestation-number (str (str/upper jurisdiction) "-ATTEST-" (zero-pad sequence 6))
         record {"record_id" attestation-number
                 "kind" "factoring-solvency-attestation"
                 "jurisdiction" jurisdiction
