@@ -73,7 +73,7 @@
 
   Build:  clojure -M:render-html            (or -M:dev:render-html)
   Output: docs/samples/operator-console.html"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [langgraph.graph :as g]
             [css.core :as css]
             [html.core :as h]
