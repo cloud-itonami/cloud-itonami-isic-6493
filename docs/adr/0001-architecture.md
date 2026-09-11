@@ -210,7 +210,7 @@ violations` established.
 account debtor's sanctions-screening ground truth directly off the Store
 at BOTH `:receivable/verify` and `:advance/fund` -- not gated behind a
 single upstream step. This closes a real design gap found while writing
-`test/factoring/governor_contract_test.cljc`'s `sanctions-hit-also-
+`test/factoring/governor_contract_test.cljk`'s `sanctions-hit-also-
 blocks-advance-directly-skipping-verify`: since `:receivable/underwrite`
 has no HARD precondition requiring `:receivable/verify` to have run first
 (mirroring `6492`'s `:loan/approve`, which likewise has no precondition
@@ -248,7 +248,7 @@ already-larger-than-typical scope (three first-class anti-Zentoshin
 mitigations layered onto the standard actor shape), the kernels
 extraction is treated as an orthogonal, additive hardening step available
 as a follow-up, not a blocking requirement for this R0's file layout. See
-`test/factoring/portable_cljs_test_runner.cljc`'s own docstring for the
+`test/factoring/portable_cljs_test_runner.cljk`'s own docstring for the
 same note.
 
 ## Consequences
@@ -258,7 +258,7 @@ same note.
   for a publicly-queryable, ledger-recomputed solvency attestation
   gating a real-money actuation.
 - (+) The two-actuation invariant (governor + phase, two layers) is
-  regression-tested by `test/factoring/phase_test.cljc`'s never-auto
+  regression-tested by `test/factoring/phase_test.cljk`'s never-auto
   tests for both `:advance/fund` and `:reserve/settle`.
   `:solvency/attest`'s own never-auto invariant is tested separately.
 - (+) `MemStore` ‖ `DatomicStore` parity is proven by `test/factoring/

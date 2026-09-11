@@ -115,7 +115,7 @@ token.
 
 ### 8. Live smoke-testing caught two real bugs before this ADR was written
 
-Both fixed and regression-tested (`worker/test/routes_test.clj`) before
+Both fixed and regression-tested (`worker/test/routes_test.cljk`) before
 landing, not left as known-broken:
 
 1. **Empty POST bodies crashed `.json()`** on every action route that
@@ -168,7 +168,7 @@ backend is intentionally not attached.
   unauthenticated, provably (curled without any credential).
 - (+) Two real bugs were caught and fixed by live smoke-testing before
   this ADR was written, not left latent.
-- (+) `worker/test/routes_test.clj` (15 tests / 43 assertions) locks in
+- (+) `worker/test/routes_test.cljk` (15 tests / 43 assertions) locks in
   both fixes and the full HTTP-API contract, run on the JVM against the
   same `factoring.store/seed-db` the core actor's own suite uses.
 - (-) The KV eventual-consistency race window (Decision 4) is an
