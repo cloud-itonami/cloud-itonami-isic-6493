@@ -142,7 +142,7 @@ ADR-0002 documented finding (via live smoke-testing, not inspection)
 that a JSON body's `:debtor-risk-tier` arrives as a Clojure STRING
 (`js->clj :keywordize-keys true` only keywordizes map KEYS, not
 values), silently breaking the keyword-keyed fee-schedule lookup.
-`worker/routes.cljc`'s `coerce-receivable-patch` was extended
+`worker/routes.cljk`'s `coerce-receivable-patch` was extended
 PROACTIVELY this time -- before shipping, not after rediscovering the
 same bug class live -- to also coerce `:client-subject-type`/
 `:debtor-subject-type`/`:client-ekyc-method`/`:debtor-ekyc-method`/

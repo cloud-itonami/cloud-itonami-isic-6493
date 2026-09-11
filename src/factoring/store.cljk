@@ -17,7 +17,7 @@
   establishes.
 
   Both implement the same protocol and pass the same contract
-  (test/factoring/store_contract_test.cljc), which is the whole point:
+  (test/factoring/store_contract_test.cljk), which is the whole point:
   the actor, the Factoring Governor and the audit ledger never know
   which SSoT they run on -- and, per this actor's own anti-Zentoshin
   design (see `factoring.registry`'s ns docstring), a client, an
@@ -65,7 +65,7 @@
   (commit-record! [s record] "apply a committed op's record to the SSoT")
   (append-ledger! [s fact]   "append one immutable decision fact")
   (with-receivables [s receivables] "replace/seed the receivable directory (map id->receivable)")
-  (register-funder! [s funder] "administrative: add/update a funder record ({:id :name :funding-capacity}) -- ground truth entered by the operator, the SAME kind of static reference data `demo-funders`/`:debtor-credit-limit` already are. Deliberately NOT run through the LLM-advisor/governor pipeline: there is no proposal-fabrication or actuation risk in recording who a funding partner is and their own committed capacity, unlike a receivable's advance/settlement -- see `worker/routes.cljc`'s own docstring for the full reasoning behind this deployment's admin-vs-governed-op split")
+  (register-funder! [s funder] "administrative: add/update a funder record ({:id :name :funding-capacity}) -- ground truth entered by the operator, the SAME kind of static reference data `demo-funders`/`:debtor-credit-limit` already are. Deliberately NOT run through the LLM-advisor/governor pipeline: there is no proposal-fabrication or actuation risk in recording who a funding partner is and their own committed capacity, unlike a receivable's advance/settlement -- see `worker/routes.cljk`'s own docstring for the full reasoning behind this deployment's admin-vs-governed-op split")
   (settlement-account [s] "this deployment's own settlement account ({:iban :bic :account-holder-name}), or nil if not yet configured -- the ordering/debtor side `factoring.registry/build-settlement-instruction` needs to construct a real XS2A/MT103 settlement-instruction artifact")
   (register-settlement-account! [s account] "administrative, same admin-not-governed posture as register-funder! -- recording THIS factor's own bank account details carries no proposal-fabrication or actuation risk"))
 
@@ -338,12 +338,12 @@
 
 (defn snapshot
   "The MemStore's raw EDN state -- for persisting to an external durable
-  store (e.g. `worker/kv_store.cljs`'s KV-backed persistence layer)
+  store (e.g. `worker/kv_store.cljk`'s KV-backed persistence layer)
   between requests. Pairs with `from-snapshot`. Plain EDN (not JSON): the
   book's `:status`/`:debtor-risk-tier`/etc. values are keywords, and a
   round-trip through JSON would silently turn them into strings, which
   every keyword-comparison HARD check in `factoring.governor` depends
-  on -- `pr-str`/`edn/read-string` (via `worker/kv_store.cljs`'s
+  on -- `pr-str`/`edn/read-string` (via `worker/kv_store.cljk`'s
   `cljs.reader`) round-trips exactly."
   [store]
   @(:a store))

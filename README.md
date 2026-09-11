@@ -270,14 +270,14 @@ the same capability lib.
 
 | File | Role |
 |---|---|
-| `src/factoring/store.cljc` | **Store** protocol -- `MemStore` ‖ `DatomicStore` (`langchain.db`) + append-only audit ledger + advance/settlement/solvency-attestation history. TWO entity kinds: the RECEIVABLE (dynamic) and the FUNDER (a small, mostly-static reference registry) |
-| `src/factoring/registry.cljc` | Advance/settlement/attestation draft records, `compute-advance-amount`/`compute-reserve-amount`/`compute-settlement-amount`, the PUBLISHED VERSIONED `fee-schedule`, and the exposure-aggregation primitive (`aggregate-exposure` -> `debtor-exposure`/`funder-exposure`/`book-exposure`/`solvency-report`) -- see its own ns docstring for the full 全東信 rationale |
-| `src/factoring/facts.cljc` | Per-jurisdiction receivables-assignment/factoring-law catalog (client's jurisdiction, mirroring UCC Article 9's choice-of-law rule) with an official spec-basis citation per entry, honest coverage reporting |
-| `src/factoring/factoringllm.cljc` | **Factoring-LLM Advisor** -- `mock-advisor` ‖ `llm-advisor`; intake/verification/underwriting/advance/collection/settlement/solvency-attestation proposals |
-| `src/factoring/governor.cljc` | **Factoring Governor** -- 9 named HARD checks + 2 double-actuation guards; see its own ns docstring for the full check-family-taxonomy honesty accounting |
-| `src/factoring/phase.cljc` | **Phase 0→3** -- read-only → assisted intake → assisted verify → supervised (advance/settle/attest always human; receivable intake is the ONLY auto-eligible op, no capital risk) |
-| `src/factoring/operation.cljc` | **OperationActor** -- langgraph-clj StateGraph |
-| `src/factoring/sim.cljc` | demo driver |
+| `src/factoring/store.cljk` | **Store** protocol -- `MemStore` ‖ `DatomicStore` (`langchain.db`) + append-only audit ledger + advance/settlement/solvency-attestation history. TWO entity kinds: the RECEIVABLE (dynamic) and the FUNDER (a small, mostly-static reference registry) |
+| `src/factoring/registry.cljk` | Advance/settlement/attestation draft records, `compute-advance-amount`/`compute-reserve-amount`/`compute-settlement-amount`, the PUBLISHED VERSIONED `fee-schedule`, and the exposure-aggregation primitive (`aggregate-exposure` -> `debtor-exposure`/`funder-exposure`/`book-exposure`/`solvency-report`) -- see its own ns docstring for the full 全東信 rationale |
+| `src/factoring/facts.cljk` | Per-jurisdiction receivables-assignment/factoring-law catalog (client's jurisdiction, mirroring UCC Article 9's choice-of-law rule) with an official spec-basis citation per entry, honest coverage reporting |
+| `src/factoring/factoringllm.cljk` | **Factoring-LLM Advisor** -- `mock-advisor` ‖ `llm-advisor`; intake/verification/underwriting/advance/collection/settlement/solvency-attestation proposals |
+| `src/factoring/governor.cljk` | **Factoring Governor** -- 9 named HARD checks + 2 double-actuation guards; see its own ns docstring for the full check-family-taxonomy honesty accounting |
+| `src/factoring/phase.cljk` | **Phase 0→3** -- read-only → assisted intake → assisted verify → supervised (advance/settle/attest always human; receivable intake is the ONLY auto-eligible op, no capital risk) |
+| `src/factoring/operation.cljk` | **OperationActor** -- langgraph-clj StateGraph |
+| `src/factoring/sim.cljk` | demo driver |
 | `test/factoring/*_test.cljc` | governor contract · phase invariants · store parity · registry conformance · facts coverage |
 
 ## Business-process coverage (honest)
