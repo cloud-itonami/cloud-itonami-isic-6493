@@ -3,8 +3,8 @@
   "private": true,
   "description": "Cloudflare Worker for cloud-itonami-isic-6493 (Factoring activities, ISIC Rev.5 6493) -- factoring.murakumo.cloud",
   "scripts": {
-    "build": "shadow-cljs release worker",
-    "dev": "shadow-cljs watch worker",
+    "build": "amu compile --target wasm32-browser worker",
+    "dev": "amu compile --target wasm32-browser worker",
     "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {

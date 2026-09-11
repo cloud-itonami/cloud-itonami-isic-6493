@@ -9,8 +9,8 @@ The capability layer lives in [`kotoba-lang/banking`](https://github.com/kotoba-
 contracts.
 
 ```bash
-clojure -M:dev:test
-clojure -M:lint
+kbb -M:dev:test
+kbb -M:lint
 ```
 
 Keep changes small and include tests for any capability-layer change.

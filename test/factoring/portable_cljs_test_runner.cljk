@@ -9,7 +9,7 @@
       (JVM / babashka are last-resort compat, not the design target)
 
   The factoring test suite is portable .cljc and runs UNCHANGED here
-  and on the JVM (`clojure -M:dev:test`, secondary compat gate). This
+  and on the JVM (`kbb -M:dev:test`, secondary compat gate). This
   includes `factoring.store-contract-test`, which exercises the
   langchain.db Datomic-API-compatible store — the kotoba-server /
   kotobase datom seam — under ClojureScript.
@@ -27,7 +27,7 @@
   Invoke from the repo root (the :test alias's :main-opts would steal
   -m if combined, hence -Sdeps for the extra path):
 
-    clojure -Sdeps '{:paths [\"src\" \"test\"]}' \\
+    kbb -Sdeps '{:paths [\"src\" \"test\"]}' \\
       -M:dev:cljs -m cljs.main --target node \\
       --output-dir target/node-out \\
       --output-to target/tests.cjs -c factoring.portable-cljs-test-runner

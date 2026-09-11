@@ -1,5 +1,5 @@
 (ns factoring.sim
-  "Demo driver -- `clojure -M:dev:run`. Walks a clean receivable
+  "Demo driver -- `kbb -M:dev:run`. Walks a clean receivable
   through intake -> verify -> underwrite -> a solvency-attestation-
   gated cash advance (**actuation 1**) -> collect -> reserve
   settlement (**actuation 2**), then a solvency attestation publish,

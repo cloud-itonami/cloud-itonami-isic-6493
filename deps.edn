@@ -49,11 +49,11 @@
   ;; io.github.com-junkawasaki/langchain-clj. langgraph declares the same
   ;; library as io.github.kotoba-lang/langchain, so the entry matched no
   ;; node in the resolved tree and never reached the classpath -- verified
-  ;; with `clojure -Stree`/-Spath, unchanged before and after removal.
+  ;; with `kbb -Stree`/-Spath, unchanged before and after removal.
   :dev {}
-  ;; clojure -M:dev:run  -> drive the demo through one OperationActor
+  ;; kbb -M:dev:run  -> drive the demo through one OperationActor
   :run {:main-opts ["-m" "factoring.sim"]}
-  ;; clojure -M:render-html  -> RUN the actor and write
+  ;; kbb -M:render-html  -> RUN the actor and write
   ;; docs/samples/operator-console.html from the actual run output.
   ;; Self-contained (carries the same :dev override) so it works both as
   ;; `-M:render-html` and as `-M:dev:render-html`. Optional first arg is
@@ -68,7 +68,7 @@
   ;; PRIMARY gate: the portable .cljc suite under a real ClojureScript
   ;; host (runtime priority: cljs first, JVM compat) --
   ;; `factoring.portable-cljs-test-runner`'s own docstring.
-  ;;   clojure -Sdeps '{:paths ["src" "test"]}' -M:dev:cljs \
+  ;;   kbb -Sdeps '{:paths ["src" "test"]}' -M:dev:cljs \
   ;;     -m cljs.main --target node -m factoring.portable-cljs-test-runner
   :cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}}}
   ;; static analysis -- clj-kondo from deps (no binary), errors fail CI.
