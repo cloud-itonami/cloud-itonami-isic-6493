@@ -71,7 +71,7 @@
   and leg are -- and the omission is disclosed on the page rather than
   hidden.
 
-  Build:  clojure -M:render-html            (or -M:dev:render-html)
+  Build:  kbb -M:render-html            (or -M:dev:render-html)
   Output: docs/samples/operator-console.html"
   (:require [kotoba.lang.text :as str]
             [langgraph.graph :as g]

@@ -183,7 +183,7 @@ for this R0.
 
 ```bash
 npm install
-npm run build     # shadow-cljs release worker -> dist/worker.js
+npm run build     # amu compile --target wasm32-browser worker -> dist/worker.js
 npm run deploy    # build + wrangler deploy
 wrangler secret put FACTORING_API_KEY   # once, or to rotate
 ```

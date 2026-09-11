@@ -283,8 +283,8 @@ same note.
   a single advance) -- see Alternatives.
 - (-) The `.kotoba`/WASM kernels-extraction layer `6492`/`6499` both have
   is deferred, not ported -- see Decision 11.
-- 63 tests / 268 assertions, lint-clean (`clojure -M:lint`), demo
-  (`clojure -M:dev:run`) verified to run end-to-end exactly as designed:
+- 63 tests / 268 assertions, lint-clean (`kbb -M:lint`), demo
+  (`kbb -M:dev:run`) verified to run end-to-end exactly as designed:
   one clean lifecycle through both actuations (gated by a solvency
   attestation) plus SEVEN HARD-hold cases (stale/missing attestation,
   debtor+funder concentration co-firing, an isolated funder-
