@@ -6,6 +6,10 @@
  ;; inside the monorepo checkout — a standalone fork should override them
  ;; with git coordinates.
  :deps {
+        ;; kotoba.robotics.process: the process-physics solvers and probe this
+        ;; repo's physics.edn runs on (physical-AI bot, scripts/physical-ai-bots).
+        io.github.kotoba-lang/robotics {:local/root "../../kotoba-lang/robotics"}
+
         ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
         ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
         ;; this repo silently rides whatever a sibling happens to name.
@@ -45,7 +49,14 @@
          :git/sha "83db99546eabc53613ae826ea41d1533a3c574af"}
         }
  :aliases
- {;; This alias held an :override-deps entry for the retired coordinate
+ {
+  ;; kbb -M:physics -> the physical-AI bot's measurement: runs physics.edn on
+  ;; kotoba.robotics.process and prints one probe map. Exit 2 = could not measure.
+  :physics {:main-opts ["-m" "kotoba.robotics.process.probe"]}
+  ;; kbb -M:physai-test -> test/'s .cljk on kbb's runner (the bot's test count;
+  ;; a .kotoba vertical's own :test may refuse kbb on purpose).
+  :physai-test {:extra-paths ["test" "test-physai"] :main-opts ["-m" "cognitect.test-runner"]}
+;; This alias held an :override-deps entry for the retired coordinate
   ;; io.github.com-junkawasaki/langchain-clj. langgraph declares the same
   ;; library as io.github.kotoba-lang/langchain, so the entry matched no
   ;; node in the resolved tree and never reached the classpath -- verified
