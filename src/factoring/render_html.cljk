@@ -73,7 +73,7 @@
 
   Build:  kbb -M:render-html            (or -M:dev:render-html)
   Output: docs/samples/operator-console.html"
-  (:require [kotoba.lang.text :as str]
+  (:require [kotoba.bytes :as kbytes] [kotoba.io :as kio] [kotoba.lang.text :as str]
             [langgraph.graph :as g]
             [css.core :as css]
             [html.core :as h]
@@ -956,12 +956,12 @@
                 :required min-hard-holds
                 :classes (frequencies (map classify-fact (all-facts run)))})))
      (let [{:keys [sections html]} (page run)
-           dir (java.io.File. ^String out-dir)
-           f (java.io.File. dir "operator-console.html")]
-       (.mkdirs dir)
+           dir (kio/file ^String out-dir)
+           f (kio/file dir "operator-console.html")]
+       (kio/mkdirs dir)
        (spit f html)
-       {:file (.getPath f)
-        :bytes (count (.getBytes ^String html "UTF-8"))
+       {:file (kio/path f)
+        :bytes (count (kbytes/utf8-bytes ^String html))
         :sections (count sections)
         :rows (reduce + (map :rows sections))
         :hard-holds (count holds)
