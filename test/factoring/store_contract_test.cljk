@@ -5,7 +5,7 @@
   configuration change, not a rewrite -- see `credit.store-contract-
   test` (`cloud-itonami-isic-6492`) for the same pattern on the
   closest sibling."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [factoring.store :as store]))
 
 (defn- backends []
