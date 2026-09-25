@@ -5,6 +5,10 @@
  ;; way -- routes.cljc is a thin HTTP wrapper around it, never a
  ;; reimplementation, see routes.cljc's own docstring.
  :deps {
+        ;; kotoba.test (clojure.test-compatible surface), not clojure.test --
+        ;; scripts/migrate-clojure-test-to-kotoba-test.cljk. Explicit floor.
+        io.github.kotoba-lang/test {:git/url "https://github.com/kotoba-lang/test.git"
+                                    :git/sha "448f1bf71dcbfa6bf11bf99248b6e225f51eea02"}
         ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
         ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
         ;; this repo silently rides whatever a sibling happens to name.

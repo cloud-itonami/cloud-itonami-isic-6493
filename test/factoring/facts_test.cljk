@@ -1,5 +1,5 @@
 (ns factoring.facts-test
-  (:require [clojure.test :refer [deftest is]]
+  (:require [kotoba.test :refer [deftest is]]
             [factoring.facts :as facts]))
 
 (deftest jpn-has-a-spec-basis

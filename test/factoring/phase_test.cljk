@@ -2,7 +2,7 @@
   "The phase table as executable tests. The invariant this repo cannot
   regress on: `:advance/fund` and `:reserve/settle` must NEVER be a
   member of any phase's `:auto` set."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [factoring.phase :as phase]))
 
 (deftest advance-never-auto-at-any-phase

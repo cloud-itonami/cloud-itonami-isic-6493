@@ -11,7 +11,7 @@
   duplicated under cljs, since the deployed Worker's actual request
   path is exercised by the live smoke test instead, not a second cljs
   unit-test run)."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [factoring.store :as store]
             [routes :as routes]))
 
