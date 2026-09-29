@@ -52,7 +52,7 @@
         {:local/root "../../kotoba-lang/html"}
         io.github.kotoba-lang/css
         {:local/root "../../kotoba-lang/css"}
-        ;; デジタル庁デザインシステム (DADS) -- CLAUDE.md の repo-wide mandatory
+        ;; デジタル庁デザインシステム (DADS) -- AGENTS.md の repo-wide mandatory
         ;; な基盤デザインシステム。`factoring.render-html` が `jp-go-dds.skin`
         ;; の CSS をオペレーターコンソールの土台に使う。
         ;;

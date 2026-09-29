@@ -1,7 +1,7 @@
 (ns factoring.portable-cljs-test-runner
   "PRIMARY automated quality gate for this actor under a real
   ClojureScript host (cljs.main --target node) — the same runtime-
-  priority rule as this superproject's CLAUDE.md and `credit.
+  priority rule as this superproject's AGENTS.md and `credit.
   portable-cljs-test-runner`'s (`cloud-itonami-isic-6492`) own
   precedent:
 
